@@ -15,18 +15,18 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
   && apt-get clean -y && apt-get autoclean -y && apt-get autoremove -y
 
 ## For now, install 'emacs', to be able to edit packages
-#  in the builder:
+#  in the builder, and 'curl'
 RUN apt-get update && apt-get upgrade -y && \
-    apt-get install -y emacs && apt-get clean -y && \
+    apt-get install -y emacs curl && apt-get clean -y && \
     apt-get autoclean -y && apt-get autoremove -y
 
 # Install dckstack from github (using git):
 RUN apt-get update -qq && apt-get install -y git-core && \
     apt-get clean -y && apt-get autoclean -y && apt-get autoremove -y && \
     cd /tmp && \
-    git clone https://github.com/pvelasco/dcmstack.git && \
+    git clone https://github.com/moloney/dcmstack.git && \
     cd dcmstack && \
-    git checkout rf/py3 && \
+    git checkout py3-compat && \
     easy_install ./ && \
     cd / && rm -rf /tmp/dcmstack
 
@@ -35,10 +35,10 @@ RUN apt-get update -qq && apt-get install -y git-core && \
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y pigz && \
     apt-get clean -y && apt-get autoclean -y && apt-get autoremove -y && \
-    cd /tmp && \
-    git clone https://github.com/rordenlab/dcm2niix.git && \
-    cd dcm2niix && \
-    git checkout tags/v1.0.20180328 && \
+    \
+    curl -sSL https://github.com/rordenlab/dcm2niix/archive/v1.0.20180622.tar.gz \
+        | tar xz -C /tmp/ && \
+    cd /tmp/dcm2niix* && \
     mkdir build && cd build && cmake -DBATCH_VERSION=ON .. && \
     make && make install && \
     cd / && rm -rf /tmp/dcm2niix
@@ -47,7 +47,6 @@ RUN apt-get update && apt-get upgrade -y && \
 RUN cd /tmp && \
     git clone https://github.com/cbinyu/heudiconv.git && \
     cd heudiconv && \
-    git checkout master && \
     pip install . && \
     cd / && rm -rf /tmp/heudiconv
 
