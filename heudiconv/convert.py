@@ -476,58 +476,97 @@ def save_converted_files(res, item_dicoms, bids, outtype, prefix, outname_bids, 
                       if len(res.outputs.bids) == len(res_files)
                       else [None] * len(res_files))
 
-        for fl, suffix, bids_file in zip(res_files, suffixes, bids_files):
-            # _sbref sequences reconstructing magnitude and phase generate
-            # two NIfTI files in the same series, so we cannot just add
-            # the suffix, if we want to be bids compliant:
+        ###   Do we have a multi-echo series?   ###
+        #   Some Siemens sequences (e.g. CMRR's MB-EPI) set the label 'TE1',
+        #   'TE2', etc. in the 'ImageType' field. However, other seqs do not
+        #   (e.g. MGH ME-MPRAGE). They do set a 'EchoNumber', but not for the
+        #   first echo.  To compound the problem, the echoes are NOT in order,
+        #   so the first NIfTI file does not correspond to echo-1, etc. So, we
+        #   need to know, beforehand, whether we are dealing with a multi-echo
+        #   series. To do that, the most straightforward way is to read the
+        #   echo times for all bids_files and see if they are not all the same.
+        # Get the echo times:
+        echoTimes = [load_json(bids_file).get('EchoTime') for bids_file in bids_files]
 
-            # The following doesn't work, because the assignment 1->magnitude and
-            #    2->phase is not always true:
-            if ( bids and (False) ):
-                # Let's assume suffix=1 is for magnitude and =2 for phase:
-                if   (suffix == '1'): mag_or_phase = 'magnitude'
-                elif (suffix == '2'): mag_or_phase = 'phase'
-                
-                # insert "-magnitude" or "-phase" after "acq" (if not already present):
-                if ('-magnitude' in prefix):
-                    o1, o2 = prefix.split('-magnitude',1)
-                    outname = "%s-%s%s.%s" % (o1, mag_or_phase, o2, outtype)
-                elif ('-phase' in prefix):
-                    o1, o2 = prefix.split('-phase',1)
-                    outname = "%s-%s%s.%s" % (o1, mag_or_phase, o2, outtype)
-                elif ('_acq' in prefix):
-                    o1, o2 = prefix.split('_acq',1)
-                    o2, o3 = o2.split('_',1)
-                    outname = "%s_acq%s-%s-%s.%s" % (o1, o2, mag_or_phase, o3, outtype)
-                else:
-                    # just add "_acq-magnitude" or "_acq-phase" before "_sbref":
-                    outname = "%s_acq-%s_sbref.%s" % (prefix.strip('_sbref'), mag_or_phase, outtype)
-                
-            if ( bids and (prefix_basename[-6:] == '_sbref') ):
-                # if "_rec-" is specified, attach the suffix to the value.
-                if ('_rec-' in prefix_basename):
-                    spt = prefix_basename.split('_rec-',1)
-                    # discard anything after the next "-" or "_":
-                    spt_spt = spt[1].split('_',1)
-                    outname = "%s_rec-%s%s_%s.%s" % (spt[0], spt_spt[0], suffix, spt_spt[1], outtype)
-                else:
-                    # if not, insert "_rec-" + suffix into the outname **before** "_run",
-                    #   "_echo" or "_sbref", whichever appears first in the "prefix":
-                    for my_str in ['_run', '_echo', '_sbref']:
-                        if (my_str in prefix_basename):
-                            spt = prefix_basename.split(my_str, 1)
-                            outname = "%s_rec-%s%s%s.%s" % (spt[0], suffix, my_str, spt[1], outtype)
-                            break
-            elif ( bids and ('scout' in prefix_basename.lower()) ):
+        # To see if the echo times are the same, convert it to a set and see if
+        #   there is only one:
+        if ( len(set(echoTimes)) == 1 ): multiecho = False
+        else                           : multiecho = True
+
+        ###   Loop through the bids_files, set the output name and save files   ###
+        
+        for fl, suffix, bids_file in zip(res_files, suffixes, bids_files):
+            # load the json file info:
+            fileinfo = load_json(bids_file)
+
+            # set the prefix basename for this specific file (we'll modify it, and
+            #   we don't want to modify it for all the bids_files):
+            this_prefix_basename = prefix_basename
+            
+            # _sbref sequences reconstructing magnitude and phase generate
+            # two NIfTI files IN THE SAME SERIES, so we cannot just add
+            # the suffix, if we want to be bids compliant:
+            if ( bids and (this_prefix_basename[-6:] == '_sbref') ):
+                # Check to see if it is magnitude or phase reconstruction:
+                if   ('M' in fileinfo.get('ImageType')): mag_or_phase = 'magnitude'
+                elif ('P' in fileinfo.get('ImageType')): mag_or_phase = 'phase'
+                else                                   : mag_or_phase = suffix
+
+                # If "_rec-'mag_or_phase'" is not already there, check where to insert it:
+                if not (("_rec-%s" % mag_or_phase) in this_prefix_basename):
+
+                    # If "_rec-" is specified, append the 'mag_or_phase' value.
+                    if ('_rec-' in this_prefix_basename):
+                        spt = this_prefix_basename.split('_rec-',1)
+                        # grab the reconstruction type (grab whatever we have before the next "_"):
+                        spt_spt = spt[1].split('_',1)
+                        # update 'this_prefix_basename':
+                        this_prefix_basename = "%s_rec-%s-%s_%s" % (spt[0], spt_spt[0], mag_or_phase, spt_spt[1])
+                    
+                    # If not, insert "_rec-" + 'mag_or_phase' into the prefix_basename
+                    #   **before** "_run", "_echo" or "_sbref", whichever appears first:
+                    else:
+                        for my_str in ['_run', '_echo', '_sbref']:
+                            if (my_str in this_prefix_basename):
+                                spt = this_prefix_basename.split(my_str, 1)
+                                this_prefix_basename = "%s_rec-%s%s%s" % (spt[0], mag_or_phase, my_str, spt[1])
+                                break
+
+            # Now check if this run is multi-echo (Note: it can be _sbref and multiecho, so
+            #    don't use "elif"):
+            # For multi-echo sequences, we have to specify the echo number in the file name:
+            if ( bids and multiecho ):
+                # Get the EchoNumber from json file info.  If not present, it's echo-1
+                echoNumber=( fileinfo.get('EchoNumber') or 1 )
+
+                # Now, decide where to insert it.
+                # Insert it **before** the following string(s), whichever appears first.
+                # (Note: If you decide to support multi-echo for other sequences (e.g.
+                #    ME-MPRAGE), add the string before which you want to add the echo number
+                #    to the list below):
+                for my_str in ['_bold', '_sbref', '_T1w']:
+                    if (my_str in this_prefix_basename):
+                        spt = this_prefix_basename.split(my_str, 1)
+                        this_prefix_basename = "%s_echo-%s%s%s" % (spt[0], echoNumber, my_str, spt[1])
+                        break
+
+            # For Scout runs with multiple NIfTI images per run:
+            if ( bids and ('scout' in this_prefix_basename.lower()) ):
                 # in some cases (more than one slice slab), there are several
                 #   NIfTI images in the scout run, so distinguish them with "_acq-"
-                spt = prefix_basename.split('_acq-Scout', 1)
-                outname = "%s%s%s%s.%s" % (spt[0], '_acq-Scout', suffix, spt[1], outtype)
-            else:
-                outname = "%s%s.%s" % (prefix_basename, suffix, outtype)
+                spt = this_prefix_basename.split('_acq-Scout', 1)
+                this_prefix_basename = "%s%s%s%s" % (spt[0], '_acq-Scout', suffix, spt[1])
 
-            # stitch back the directory name:
-            outname = prefix_dirname + "/" + outname
+            # Fallback option:
+            # If we have failed to modify this_prefix_basename, because it didn't fall
+            #   into any of the options above, just add the suffix at the end:
+            if ( this_prefix_basename == prefix_basename ):
+                this_prefix_basename = "%s%s" % (this_prefix_basename, suffix)
+
+            # Finally, form the outname by stitch the directory and outtype:
+            outname = "%s/%s.%s" % (prefix_dirname, this_prefix_basename, outtype)
+
+            # Write the files needed:
             safe_copyfile(fl, outname, overwrite)
             if bids_file:
                 outname_bids_file = "%s.json" % (outname.strip(outtype))
