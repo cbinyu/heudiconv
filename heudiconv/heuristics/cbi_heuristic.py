@@ -39,19 +39,11 @@ def infotodict(seqinfo):
     pd_bias = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-bias{acq}_run-{item:02d}_PD')
     # func:
     functional = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-{task}_acq-{acq}_run-{item:02d}_bold')
-    functional_magni = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-{task}_rec-magnitude_run-{item:02d}_bold')
-    functional_phase = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-{task}_rec-phase_run-{item:02d}_bold')
+    functional_magni = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-{task}_acq-{acq}_rec-magnitude_run-{item:02d}_bold')
+    functional_phase = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-{task}_acq-{acq}_rec-phase_run-{item:02d}_bold')
     functional_sbref = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-{task}_acq-{acq}_run-{item:02d}_sbref')
-    functional_magni_sbref = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-{task}_rec-magnitude_run-{item:02d}_sbref')
-    functional_phase_sbref = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-{task}_rec-phase_run-{item:02d}_sbref')
-    rest = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-rest_run-{item:02d}_bold')
-    rest_sbref = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-rest_run-{item:02d}_sbref')
-    #face = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-face_run-{item:02d}_bold')
-    #face_sbref = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-face_run-{item:02d}_sbref')
-    #gamble = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-gambling_run-{item:02d}_bold')
-    #gamble_sbref = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-gambling_run-{item:02d}_sbref')
-    #conflict = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-conflict_run-{item:02d}_bold')
-    #conflict_sbref = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-conflict_run-{item:02d}_sbref')
+    functional_magni_sbref = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-{task}_acq-{acq}_rec-magnitude_run-{item:02d}_sbref')
+    functional_phase_sbref = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-{task}_acq-{acq}_rec-phase_run-{item:02d}_sbref')
     # diffusion:
     dwi = create_key('{bids_subject_session_dir}/dwi/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_dwi')
     dwi_sbref = create_key('{bids_subject_session_dir}/dwi/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_sbref')
@@ -63,7 +55,6 @@ def infotodict(seqinfo):
     fmap_topup_LR = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_dir-LR_run-{item:02d}_epi')    # for "topup", LR
     fmap_gre_mag = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-GRE_run-{item:02d}_magnitude')       # GRE fmap
     fmap_gre_phase = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-GRE_run-{item:02d}_phasediff')     #
-    fmap_rest = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-func{acq}_dir-{direction}_run-{item:02d}_epi')
     fmap_dwi = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi{acq}_dir-{direction}_run-{item:02d}_epi')
     fmap_dwi_AP = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-AP_run-{item:02d}_epi')
     fmap_dwi_AP_sbref = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-AP_run-{item:02d}_sbref')
@@ -75,10 +66,9 @@ def infotodict(seqinfo):
     info = {t1_scout:[], t1:[], t2:[], pd_bias:[],
             functional:[], functional_magni:[], functional_phase:[],
             functional_magni_sbref:[], functional_phase_sbref:[], functional_sbref:[],
-            rest:[], rest_sbref:[],
             dwi:[], dwi_sbref:[],
             fmap_topup:[], fmap_topup_AP:[], fmap_topup_PA:[], fmap_topup_RL:[], fmap_topup_LR:[],
-            fmap_gre_mag:[], fmap_gre_phase:[], fmap_rest:[],
+            fmap_gre_mag:[], fmap_gre_phase:[],
             fmap_dwi:[], fmap_dwi_AP:[], fmap_dwi_PA:[], fmap_dwi_RL:[], fmap_dwi_LR:[], fmap_dwi_AP_sbref:[]}                                                                                                                                                            
             #fmap_dwi_RL:[], fmap_dwi_LR:[], fmap_dwi_AP_sbref:[], phoenix_doc:[]}
 
@@ -160,21 +150,18 @@ def infotodict(seqinfo):
 
             ###   functional -- check task name   ###
             task = ''
-            if (('REST' in s.protocol_name) or ('rest' in s.protocol_name)):
+            if ('rest' in s.protocol_name.lower()):
                 task = 'rest'
-            elif (('FACE' in s.protocol_name) or ('face' in s.protocol_name)):
+            elif ('face' in s.protocol_name.lower()):
                 task = 'face'
-            elif (('CONFLICT' in s.protocol_name) or ('conflict' in s.protocol_name)):
+            elif ('conflict' in s.protocol_name.lower()):
                 task = 'conflict'
-            elif (('GAMBL' in s.protocol_name) or ('gambl' in s.protocol_name)):
+            elif ('gambl' in s.protocol_name.lower()):
                 task = 'gamble'
-            elif (('TASK' in s.protocol_name) or ('task' in s.protocol_name)):
+            elif ('task' in s.protocol_name.lower()):
                 # we want to capture what comes after "task", until the next
                 #    dash ("-") or underscore ("_"):
-                try:
-                    task = s.protocol_name.split('task')[1]
-                except IndexError:
-                    task = s.protocol_name.split('TASK')[1]
+                task = s.protocol_name.lower().split('task')[1]
                 # remove any initial "-" or "_":
                 if ((task[0] == '-') or (task[0] == '_')):
                     task = task[1:]
