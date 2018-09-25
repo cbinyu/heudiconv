@@ -87,11 +87,11 @@ def infotodict(seqinfo):
                               ('fl' in s.sequence_name)):
             # check the PE ('_PA' or '_rev' means 'reversed'):
             if ('_AP' in s.protocol_name):
-                acq = 'highres_AP'
+                acq = 'highresAP'
             elif ('_PA' in s.protocol_name):
-                acq = 'highres_PA'
+                acq = 'highresPA'
             elif ('_rev' in s.protocol_name):
-                acq = 'highres_rev'
+                acq = 'highresrev'
             else:
                 acq = 'highres'
             info[t1].append({'item': s.series_id, 'acq': acq})
@@ -103,11 +103,11 @@ def infotodict(seqinfo):
                               ('SPC' in s.protocol_name) ):
             # check the PE ('_PA' or '_rev' means 'reversed'):
             if ('_AP' in s.protocol_name):
-                acq = 'highres_AP'
+                acq = 'highresAP'
             elif ('_PA' in s.protocol_name):
-                acq = 'highres_PA'
+                acq = 'highresPA'
             elif ('_rev' in s.protocol_name):
-                acq = 'highres_rev'
+                acq = 'highresrev'
             else:
                 acq = 'highres'
             info[t2].append({'item': s.series_id, 'acq': acq})
@@ -162,6 +162,8 @@ def infotodict(seqinfo):
                 # discard anything after the next "-" or "_":
                 task = task.split('_')[0]
                 task = task.split('-')[0]
+                # remove any spaces we might have:
+                task = task.replace(" ", "")
             else:
                 task = 'TASK'    # fallback.  BIDS requires an alphanumeric string (no spaces...)
 
