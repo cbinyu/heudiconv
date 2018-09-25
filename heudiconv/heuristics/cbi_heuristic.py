@@ -36,14 +36,11 @@ def infotodict(seqinfo):
     t1_scout = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-Scout_run-{item:02d}_T1w')
     t1 = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_T1w')
     t2 = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_T2w')
-    pd_bias = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-bias{acq}_run-{item:02d}_PD')
+    pd_bias_body = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-biasBody_run-{item:02d}_PD')
+    pd_bias_receive = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-biasReceive_run-{item:02d}_PD')
     # func:
-    functional = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-{task}_acq-{acq}_run-{item:02d}_bold')
-    functional_magni = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-{task}_acq-{acq}_rec-magnitude_run-{item:02d}_bold')
-    functional_phase = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-{task}_acq-{acq}_rec-phase_run-{item:02d}_bold')
-    functional_sbref = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-{task}_acq-{acq}_run-{item:02d}_sbref')
-    functional_magni_sbref = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-{task}_acq-{acq}_rec-magnitude_run-{item:02d}_sbref')
-    functional_phase_sbref = create_key('{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-{task}_acq-{acq}_rec-phase_run-{item:02d}_sbref')
+    # For the functional runs, we want to have a different key for each task.  Since we don't know a-priori what the task
+    #  names will be, we don't create the different keys here, but we'll create them dynamically, as needed.
     # diffusion:
     dwi = create_key('{bids_subject_session_dir}/dwi/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_dwi')
     dwi_sbref = create_key('{bids_subject_session_dir}/dwi/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_sbref')
@@ -55,7 +52,7 @@ def infotodict(seqinfo):
     fmap_topup_LR = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_dir-LR_run-{item:02d}_epi')    # for "topup", LR
     fmap_gre_mag = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-GRE_run-{item:02d}_magnitude')       # GRE fmap
     fmap_gre_phase = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-GRE_run-{item:02d}_phasediff')     #
-    fmap_dwi = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi{acq}_dir-{direction}_run-{item:02d}_epi')
+    fmap_dwi = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-{direction}_run-{item:02d}_epi')
     fmap_dwi_AP = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-AP_run-{item:02d}_epi')
     fmap_dwi_AP_sbref = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-AP_run-{item:02d}_sbref')
     fmap_dwi_PA = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-PA_run-{item:02d}_epi')
@@ -63,14 +60,12 @@ def infotodict(seqinfo):
     fmap_dwi_LR = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-LR_run-{item:02d}_epi')
     #phoenix_doc = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_phoenix')
 
-    info = {t1_scout:[], t1:[], t2:[], pd_bias:[],
-            functional:[], functional_magni:[], functional_phase:[],
-            functional_magni_sbref:[], functional_phase_sbref:[], functional_sbref:[],
+    info = {t1_scout:[], t1:[], t2:[], pd_bias_body:[], pd_bias_receive:[],
             dwi:[], dwi_sbref:[],
             fmap_topup:[], fmap_topup_AP:[], fmap_topup_PA:[], fmap_topup_RL:[], fmap_topup_LR:[],
             fmap_gre_mag:[], fmap_gre_phase:[],
-            fmap_dwi:[], fmap_dwi_AP:[], fmap_dwi_PA:[], fmap_dwi_RL:[], fmap_dwi_LR:[], fmap_dwi_AP_sbref:[]}                                                                                                                                                            
-            #fmap_dwi_RL:[], fmap_dwi_LR:[], fmap_dwi_AP_sbref:[], phoenix_doc:[]}
+            fmap_dwi:[], fmap_dwi_AP:[], fmap_dwi_PA:[], fmap_dwi_RL:[], fmap_dwi_LR:[], fmap_dwi_AP_sbref:[]}
+            #phoenix_doc:[]}
 
     for idx, s in enumerate(seqinfo):
         #pdb.set_trace()
@@ -121,10 +116,9 @@ def infotodict(seqinfo):
         # BIAS images  (for coil sensitivity estimation) are typically PD-weighted
         if ('bias' in s.protocol_name.lower()) and ('tfl3d' in s.sequence_name):
             if ('body' in s.protocol_name.lower()):
-                acq = 'Body'
+                info[pd_bias_body].append({'item': s.series_id})
             else:
-                acq = 'Receive'
-            info[pd_bias].append({'item': s.series_id, 'acq': acq})
+                info[pd_bias_receive].append({'item': s.series_id})
 
         ###   FUNCTIONAL   ###
         # We want to make sure the _SBRef and phase series (if present) are labeled
@@ -171,46 +165,59 @@ def infotodict(seqinfo):
             else:
                 task = 'TASK'    # fallback.  BIDS requires an alphanumeric string (no spaces...)
 
-            # TO DO:
-            # Now that we have the task name, check if a template is defined with
-            #    that specific name. That way we can assure the run number (run-01,
+            # Below, for both magnitude and phase cases, we check if a template is defined
+            #    with that specific name. That way we can assure the run number (run-01,
             #    run-02, ...) only apply for that specific task, not for just any
             #    task. E.g., if I have two tasks, with two different runs for each
             #    task name they should be called: task-foo_run-01, task-foo_run-02,
             #    task-boo_run-01,...    as opposed to task-boo_run-03 because there
             #    were 2 previous "task" runs.
 
-            try:
-                # check to see if there is a variable called <task>_template.
-                # if it doesn't exist, it will give a "NameError"
-                eval( 'type({})'.format(task+'_template'))
-            except NameError:
-                hola = 0    # some dummy stuff, for now, so that it doesn't give an error.
-            # THIS DOESN'T WORK:
-            #    # create a new template with this name:
-            #    eval( '{} = create_key(\'{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-{task}_acq-{acq}_run-{item:02d}_bold\')'.format(task+'_template') )
-                
-            
             ###   functional -- is phase image present?   ###
             # At least for Siemens systems, if magnitude/phase was selected, the
             #  phase images come as a separate series immediatelly following the
             #  magnitude series.
             # (note: make sure you don't check beyond the number of elements...)
+            
             if (idx+1 < len(seqinfo)) and ('P' in seqinfo[idx+1].image_type):
                 # we have a magnitude/phase pair:
-                info[functional_magni].append({'item': s.series_id, 'task': task, 'acq': acq})
-                info[functional_phase].append({'item': seqinfo[idx + 1].series_id, 'task': task, 'acq': acq})
-            else:
-                info[functional].append({'item': s.series_id, 'task': task, 'acq': acq})
 
+                # dictionary keys specific for this task type:
+                mykey_mag = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_rec-magnitude_run-{item:02d}_bold" % task)
+                mykey_pha = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_rec-phase_run-{item:02d}_bold" % task)
+                try:
+                    # check if "info" already has this key by trying to append to it.
+                    info[mykey_mag].append({'item': s.series_id,                'acq': acq})
+                    info[mykey_pha].append({'item': seqinfo[idx + 1].series_id, 'acq': acq})
+                except KeyError:
+                    # if it doesn't, add this key, specifying the first item:
+                    info[mykey_mag] = [{'item': s.series_id,                'acq': acq}]
+                    info[mykey_pha] = [{'item': seqinfo[idx + 1].series_id, 'acq': acq}]
+
+            else:
+                # we only have a magnitude image
+
+                # dictionary key specific for this task type:
+                mykey = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_bold" % task)
+                try:
+                    # check if "info" already has this key by trying to append to it.
+                    info[mykey].append({'item': s.series_id, 'acq': acq})
+                except KeyError:
+                    # if it doesn't, add this key, specifying the first item:
+                    info[mykey] = [{ 'item': s.series_id, 'acq': acq }]
 
             ###   SB REF   ###
             # here, within the functional run code, check to see if the
             #  previous run protocol name ended in _SBREF, to assign the
             #  same task name and --if possible-- same run number.
             if (idx > 0) and ('_sbref' in seqinfo[idx - 1].series_description.lower()):
-                info[functional_sbref].append({'item': seqinfo[idx - 1].series_id, 'task': task, 'acq': acq})
-
+                mykey_sb = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_sbref" % task)
+                try:
+                    # check if "info" already has this key by trying to append to it.
+                    info[mykey_sb].append({'item': seqinfo[idx - 1].series_id, 'acq': acq})
+                except KeyError:
+                    # if it doesn't, add this key, specifying the first item:
+                    info[mykey_sb] = [{'item': seqinfo[idx - 1].series_id, 'acq': acq}]
 
 
         ###   FIELD MAPS   ###
