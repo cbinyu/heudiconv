@@ -47,7 +47,6 @@ RUN apt-get update && apt-get upgrade -y && \
 RUN cd /tmp && \
     git clone https://github.com/cbinyu/heudiconv.git && \
     cd heudiconv && \
-    git checkout merge_nipy_version && \
     pip install . && \
     cd / && rm -rf /tmp/heudiconv
 
