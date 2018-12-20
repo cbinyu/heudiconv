@@ -165,8 +165,26 @@ def group_dicoms_into_seqinfos(files, file_filter, dcmfilter, grouping):
 
         series_id = '-'.join(map(str, series_id))
 
-        size = list(mw.image_shape) + [len(series_files)]
-        total += size[-1]
+        if (len(mw.image_shape) > 2):
+            # 3D images in each dcm file
+            size = list(mw.image_shape) + [len(series_files)]
+        else:
+            # 2D images in each dcm file
+            # We'll have Nsl * Nt files.
+            # Check the acquisition type (2D/3D):
+            if (dcminfo.get([0x18, 0x23]).value == '2D'):
+                Nsl = parse_private_csa_header(
+                        mw.dcm_data, 'SliceArray.lSize', 'sSliceArray.lSize'
+                      )
+            else:
+                # 3D acquisition
+                Nsl = parse_private_csa_header(
+                        mw.dcm_data, 'sKSpace.lImagesPerSlab', 'sKSpace.lImagesPerSlab'
+                      )
+
+            size = list(mw.image_shape) + [Nsl, len(series_files) // Nsl ]
+
+        total += len(series_files)
         if len(size) < 4:
             size.append(1)
 
@@ -522,7 +540,14 @@ def parse_private_csa_header(dcm_data, public_attr, private_attr, default=None):
         csastr = csareader.get_csa_header(dcm_data, 'series')['tags']['MrPhoenixProtocol']['items'][0]
         csastr = csastr.replace("### ASCCONV BEGIN", "### ASCCONV BEGIN ### ")
         parsedhdr = dsextract.parse_phoenix_prot('MrPhoenixProtocol', csastr)
-        val = parsedhdr[private_attr].replace(' ', '')
+        val = parsedhdr[private_attr]
+        # if val is a string, it will remove spaces.
+        val = val.replace(' ', '')
+
+    except AttributeError:
+        # it's a number; just return it:
+        return val
+            
     except Exception as e:
         lgr.debug("Failed to parse CSA header: %s", str(e))
         val = default if default else ''
