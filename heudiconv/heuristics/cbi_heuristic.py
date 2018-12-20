@@ -73,7 +73,7 @@ def infotodict(seqinfo):
         # found in the dicominfo.tsv file
 
         acq = ''
-        
+
         ###   T1w   ###
         # 1) Auto-Align Head scout (the original images, not the derived):
         #    look for "AA*Scout" or "AA*scout" in protocol_name:
@@ -180,7 +180,7 @@ def infotodict(seqinfo):
             #  phase images come as a separate series immediatelly following the
             #  magnitude series.
             # (note: make sure you don't check beyond the number of elements...)
-            
+
             if (idx+1 < len(seqinfo)) and ('P' in seqinfo[idx+1].image_type):
                 # we have a magnitude/phase pair:
 
@@ -256,7 +256,7 @@ def infotodict(seqinfo):
             # TO-DO: do more classification here (task, etc.)
 
 
-            
+
         # B) GRE fmap:
         if ('fm2d' in s.sequence_name) and (('fieldmap' in s.protocol_name.lower()) or
                                                 ('field_map' in s.protocol_name.lower())):
@@ -295,14 +295,14 @@ def infotodict(seqinfo):
                          (seqinfo[idx - 1].series_description[-4:] == '_SBRef') and
                          ('epse2d' in seqinfo[idx - 1].sequence_name) ):
                     info[dwi_sbref].append({'item': s.series_id, 'acq': acq})
-                
+
             else:
                 # this is a fmap for diffusion.
 
                 # TO-DO: for now, just ignore the _sbref image (if present, it would
                 #        be the previous run (seqinfo[idx - 1].series_description[-4:] == '_SBRef')
                 #        because BIDS doesn't allow them.
-    
+
                 # see if we can get the orientation, for topup:
                 if ('_AP' in s.protocol_name):
                     info[fmap_dwi_AP].append({'item': s.series_id})
@@ -320,10 +320,11 @@ def infotodict(seqinfo):
                         direction = 'rev'
                     else:
                         direction = 'normal'
-                        
+
                     info[fmap_dwi].append({'item': s.series_id, 'direction': direction})
-                
-        ###   PHOENIX FILE   ###                                                                                                                                                                                                                                          
+
+        ###   PHOENIX FILE   ###
+
         #if ('PhoenixZIPReport' in s.series_description) and (s.image_type[3] == 'CSA REPORT'):       # 
         #    # Phoenix Report:
         #    info[phoenix_doc].append({'item': s.series_id})

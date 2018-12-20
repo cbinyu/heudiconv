@@ -457,6 +457,7 @@ def save_converted_files(res, item_dicoms, bids, outtype, prefix, outname_bids, 
         safe_copyfile(res.outputs.bvals, outname_bvals, overwrite)
 
     if isinstance(res_files, list):
+        res_files = sorted(res_files)
         # we should provide specific handling for fmap,
         # dwi etc which might spit out multiple files
 
@@ -472,7 +473,7 @@ def save_converted_files(res, item_dicoms, bids, outtype, prefix, outname_bids, 
 
         # Also copy BIDS files although they might need to
         # be merged/postprocessed later
-        bids_files = (res.outputs.bids
+        bids_files = sorted(res.outputs.bids
                       if len(res.outputs.bids) == len(res_files)
                       else [None] * len(res_files))
 
@@ -494,7 +495,7 @@ def save_converted_files(res, item_dicoms, bids, outtype, prefix, outname_bids, 
         else                           : multiecho = True
 
         ###   Loop through the bids_files, set the output name and save files   ###
-        
+
         for fl, suffix, bids_file in zip(res_files, suffixes, bids_files):
             # load the json file info:
             fileinfo = load_json(bids_file)
@@ -502,7 +503,7 @@ def save_converted_files(res, item_dicoms, bids, outtype, prefix, outname_bids, 
             # set the prefix basename for this specific file (we'll modify it, and
             #   we don't want to modify it for all the bids_files):
             this_prefix_basename = prefix_basename
-            
+
             # _sbref sequences reconstructing magnitude and phase generate
             # two NIfTI files IN THE SAME SERIES, so we cannot just add
             # the suffix, if we want to be bids compliant:
@@ -522,7 +523,7 @@ def save_converted_files(res, item_dicoms, bids, outtype, prefix, outname_bids, 
                         spt_spt = spt[1].split('_',1)
                         # update 'this_prefix_basename':
                         this_prefix_basename = "%s_rec-%s-%s_%s" % (spt[0], spt_spt[0], mag_or_phase, spt_spt[1])
-                    
+
                     # If not, insert "_rec-" + 'mag_or_phase' into the prefix_basename
                     #   **before** "_run", "_echo" or "_sbref", whichever appears first:
                     else:

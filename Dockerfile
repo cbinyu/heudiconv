@@ -26,7 +26,7 @@ RUN apt-get update -qq && apt-get install -y git-core && \
     cd /tmp && \
     git clone https://github.com/moloney/dcmstack.git && \
     cd dcmstack && \
-    git checkout py3-compat && \
+    git checkout v0.7 && \
     easy_install ./ && \
     cd / && rm -rf /tmp/dcmstack
 
@@ -36,7 +36,7 @@ RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y pigz && \
     apt-get clean -y && apt-get autoclean -y && apt-get autoremove -y && \
     \
-    curl -sSL https://github.com/rordenlab/dcm2niix/archive/v1.0.20180622.tar.gz \
+    curl -sSL https://github.com/rordenlab/dcm2niix/archive/v1.0.20181125.tar.gz \
         | tar xz -C /tmp/ && \
     cd /tmp/dcm2niix* && \
     mkdir build && cd build && cmake -DBATCH_VERSION=ON .. && \
@@ -47,6 +47,7 @@ RUN apt-get update && apt-get upgrade -y && \
 RUN cd /tmp && \
     git clone https://github.com/cbinyu/heudiconv.git && \
     cd heudiconv && \
+    git checkout merge_nipy_version && \
     pip install . && \
     cd / && rm -rf /tmp/heudiconv
 
