@@ -95,6 +95,19 @@ def infotodict(seqinfo):
             else:
                 acq = 'highres'
             info[t1].append({'item': s.series_id, 'acq': acq})
+        # 3) FSE T1w:
+        # single volume, series description includes TSE or FSE, protocol name includes T1, T1w
+        if ((s.dim4 == 1) and ('t1' in s.protocol_name.lower()) and ('tse' in s.sequence_name)):
+            # check the PE ('_PA' or '_rev' means 'reversed'):
+            if ('_AP' in s.protocol_name):
+                acq = 'fseAP'
+            elif ('_PA' in s.protocol_name):
+                acq = 'fsePA'
+            elif ('_rev' in s.protocol_name):
+                acq = 'fserev'
+            else:
+                acq = 'fse'
+            info[t1].append({'item': s.series_id, 'acq': acq})
         ###   T2w   ###
         # single volume, protocol name including T2, T2w, TSE, SPACE, SPC:
         if (s.dim4 == 1) and (('T2' in s.protocol_name) or
