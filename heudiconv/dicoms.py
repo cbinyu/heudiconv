@@ -155,7 +155,7 @@ def group_dicoms_into_seqinfos(files, file_filter, dcmfilter, grouping):
             if mw.dcm_data.SeriesDescription == 'PhoenixZIPReport':
                 # just give it a dummy shape, so that we can continue:
                 mw.image_shape=(0,0,0)
-            else
+            else:
                 # nothing to see here, just move on
                 continue
         dcminfo = mw.dcm_data
