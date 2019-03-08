@@ -58,14 +58,15 @@ def infotodict(seqinfo):
     fmap_dwi_PA = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-PA_run-{item:02d}_epi')
     fmap_dwi_RL = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-RL_run-{item:02d}_epi')
     fmap_dwi_LR = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-LR_run-{item:02d}_epi')
-    #phoenix_doc = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_phoenix')
+    # We'll keep a copy of the PhoenixZipReport in the 'sourcedata' (we'll only write out the dicom file, not the nifti):
+    phoenix_doc = create_key('{bids_subject_session_dir}/misc/{bids_subject_session_prefix}_phoenix', outtype = ('dicom',))
 
     info = {t1_scout:[], t1:[], t2:[], pd_bias_body:[], pd_bias_receive:[],
             dwi:[], dwi_sbref:[],
             fmap_topup:[], fmap_topup_AP:[], fmap_topup_PA:[], fmap_topup_RL:[], fmap_topup_LR:[],
             fmap_gre_mag:[], fmap_gre_phase:[],
-            fmap_dwi:[], fmap_dwi_AP:[], fmap_dwi_PA:[], fmap_dwi_RL:[], fmap_dwi_LR:[], fmap_dwi_AP_sbref:[]}
-            #phoenix_doc:[]}
+            fmap_dwi:[], fmap_dwi_AP:[], fmap_dwi_PA:[], fmap_dwi_RL:[], fmap_dwi_LR:[], fmap_dwi_AP_sbref:[],
+            phoenix_doc:[]}
 
     for idx, s in enumerate(seqinfo):
         #pdb.set_trace()
@@ -336,11 +337,11 @@ def infotodict(seqinfo):
 
                     info[fmap_dwi].append({'item': s.series_id, 'direction': direction})
 
+
         ###   PHOENIX FILE   ###
 
-        #if ('PhoenixZIPReport' in s.series_description) and (s.image_type[3] == 'CSA REPORT'):       # 
-        #    # Phoenix Report:
-        #    info[phoenix_doc].append({'item': s.series_id})
+        if ('PhoenixZIPReport' in s.series_description) and (s.image_type[3] == 'CSA REPORT'):       #
+            info[phoenix_doc].append({'item': s.series_id})
 
         #if (s.dim4 >= 99) and (('dMRI_dir98_AP' in s.protocol_name) or ('dMRI_dir99_AP' in s.protocol_name)):
         #    acq = s.protocol_name.split('dMRI_')[1].split('_')[0] + 'AP'

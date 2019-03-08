@@ -150,9 +150,14 @@ def group_dicoms_into_seqinfos(files, file_filter, dcmfilter, grouping):
             continue
         mw = mwgroup[mwidx]
         if mw.image_shape is None:
-            # this whole thing has now image data (maybe just PSg DICOMs)
-            # nothing to see here, just move on
-            continue
+            # this whole thing has no image data (maybe just PSg DICOMs)
+            # If this is a Siemens PhoenixZipReport, keep it:
+            if mw.dcm_data.SeriesDescription == 'PhoenixZIPReport':
+                # just give it a dummy shape, so that we can continue:
+                mw.image_shape=(0,0,0)
+            else
+                # nothing to see here, just move on
+                continue
         dcminfo = mw.dcm_data
         series_files = [files[i] for i, s in enumerate(groups[0])
                         if s == series_id]
