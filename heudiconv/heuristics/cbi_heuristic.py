@@ -32,8 +32,8 @@ def infotodict(seqinfo):
     seqitem: run number during scanning
     subindex: sub index within group
     """
+    ###   NIFTI and DICOM   ###
     # anat:
-    t1_scout = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-Scout_run-{item:02d}_T1w')
     t1 = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_T1w')
     t2 = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_T2w')
     pd_bias_body = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-biasBody_run-{item:02d}_PD')
@@ -58,15 +58,23 @@ def infotodict(seqinfo):
     fmap_dwi_PA = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-PA_run-{item:02d}_epi')
     fmap_dwi_RL = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-RL_run-{item:02d}_epi')
     fmap_dwi_LR = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-LR_run-{item:02d}_epi')
-    # We'll keep a copy of the PhoenixZipReport in the 'sourcedata' (we'll only write out the dicom file, not the nifti):
+
+    ###  DICOM only   ###
+    # These are images we don't want for analysis, but we still want to keep a copy of
+    #   the DICOMs in the 'sourcedata' folder.  We manage that by specifying the 'outtype'
+    #   to be only 'dicom':
+    # anat:
+    t1_scout = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-Scout_run-{item:02d}_T1w', outtype = ('dicom',))
+    t2_dicom = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_T2w', outtype = ('dicom',))
+    # Misc:
     phoenix_doc = create_key('{bids_subject_session_dir}/misc/{bids_subject_session_prefix}_phoenix', outtype = ('dicom',))
 
-    info = {t1_scout:[], t1:[], t2:[], pd_bias_body:[], pd_bias_receive:[],
+    info = {t1:[], t2:[], pd_bias_body:[], pd_bias_receive:[],
             dwi:[], dwi_sbref:[],
             fmap_topup:[], fmap_topup_AP:[], fmap_topup_PA:[], fmap_topup_RL:[], fmap_topup_LR:[],
             fmap_gre_mag:[], fmap_gre_phase:[],
             fmap_dwi:[], fmap_dwi_AP:[], fmap_dwi_PA:[], fmap_dwi_RL:[], fmap_dwi_LR:[], fmap_dwi_AP_sbref:[],
-            phoenix_doc:[]}
+            t1_scout:[], t2_dicom: [], phoenix_doc:[]}
 
     for idx, s in enumerate(seqinfo):
         #pdb.set_trace()
@@ -110,6 +118,7 @@ def infotodict(seqinfo):
                 acq = 'fse'
             info[t1].append({'item': s.series_id, 'acq': acq})
         ###   T2w   ###
+        # 1) Standard high-res T2w used for cortical segmentation:
         # single volume, protocol name including T2, T2w, TSE, SPACE, SPC:
         if (s.dim4 == 1) and (('T2' in s.protocol_name) or
                               ('TSE' in s.protocol_name) or
@@ -126,6 +135,11 @@ def infotodict(seqinfo):
                 acq = 'highres'
             info[t2].append({'item': s.series_id, 'acq': acq})
 
+        # 2) Fast Spin-Echo used as a localizer:
+        # single volume, sequence name: 'h2d1' ('haste')"
+        if (s.dim4 == 1) and ('h2d1' in s.sequence_name):
+            info[t2_dicom].append({'item': s.series_id, 'acq': 'haste'})
+
         ###   PD   ###
         # BIAS images  (for coil sensitivity estimation) are typically PD-weighted
         if ('bias' in s.protocol_name.lower()) and ('tfl3d' in s.sequence_name):
@@ -140,7 +154,7 @@ def infotodict(seqinfo):
         #  series (to exclude phase images) and more than 3 volumes (to exclude _SBRef)
         #  and then we search if the phase and/or _SBRef are present.
         if ((s.dim4 >= 4) and ('epfid2d' in s.sequence_name)
-                          and ('M' in s.image_type)
+                          and (('M' in s.image_type) or ('FMRI' in s.image_type))
                           and (s.series_description[-6:].lower() != '_sbref')):
 
             ###   functional -- check PE direction   ###
@@ -166,6 +180,12 @@ def infotodict(seqinfo):
                 task = 'conflict'
             elif ('gambl' in s.protocol_name.lower()):
                 task = 'gamble'
+            elif (s.protocol_name == "Fix"):
+                task = 'fix'
+            elif (s.protocol_name == "Films"):
+                task = 'films'
+            elif (s.protocol_name == "Inscapes"):
+                task = 'inscapes'
             elif ('task' in s.protocol_name.lower()):
                 # we want to capture what comes after "task", until the next
                 #    dash ("-") or underscore ("_"):
@@ -193,7 +213,7 @@ def infotodict(seqinfo):
             # At least for Siemens systems, if magnitude/phase was selected, the
             #  phase images come as a separate series immediatelly following the
             #  magnitude series.
-            # (note: make sure you don't check beyond the number of elements...)
+            # (note: make sure you don't check beyond the number of elements in seqinfo...)
 
             if (idx+1 < len(seqinfo)) and ('P' in seqinfo[idx+1].image_type):
                 # we have a magnitude/phase pair:
@@ -343,18 +363,6 @@ def infotodict(seqinfo):
         if ('PhoenixZIPReport' in s.series_description) and (s.image_type[3] == 'CSA REPORT'):       #
             info[phoenix_doc].append({'item': s.series_id})
 
-        #if (s.dim4 >= 99) and (('dMRI_dir98_AP' in s.protocol_name) or ('dMRI_dir99_AP' in s.protocol_name)):
-        #    acq = s.protocol_name.split('dMRI_')[1].split('_')[0] + 'AP'
-        #    info[dwi].append({'item': s.series_id, 'acq': acq})
-        #if (s.dim4 >= 99) and (('dMRI_dir98_PA' in s.protocol_name) or ('dMRI_dir99_PA' in s.protocol_name)):
-        #    acq = s.protocol_name.split('dMRI_')[1].split('_')[0] + 'PA'
-        #    info[dwi].append({'item': s.series_id, 'acq': acq})
-        #if (s.dim4 == 1) and (('dMRI_dir98_AP' in s.protocol_name) or ('dMRI_dir99_AP' in s.protocol_name)):
-        #    acq = s.protocol_name.split('dMRI_')[1].split('_')[0]
-        #    info[fmap_dwi].append({'item': s.series_id, 'dir': 'AP', 'acq': acq})
-        #if (s.dim4 == 1) and (('dMRI_dir98_PA' in s.protocol_name) or ('dMRI_dir99_PA' in s.protocol_name)):
-        #    acq = s.protocol_name.split('dMRI_')[1].split('_')[0]
-        #   info[fmap_dwi].append({'item': s.series_id, 'dir': 'PA', 'acq': acq})
 
     #pdb.set_trace()
     return info
