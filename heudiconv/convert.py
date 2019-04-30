@@ -24,6 +24,7 @@ from .bids import (
     save_scans_key,
     tuneup_bids_json_files,
     add_participant_record,
+    BIDSError
 )
 from .dicoms import (
     group_dicoms_into_seqinfos,
@@ -79,7 +80,7 @@ def conversion_info(subject, outdir, info, filegroup, ses):
 
 def prep_conversion(sid, dicoms, outdir, heuristic, converter, anon_sid,
                    anon_outdir, with_prov, ses, bids, seqinfo, min_meta,
-                   overwrite):
+                   overwrite, dcmconfig):
     if dicoms:
         lgr.info("Processing %d dicoms", len(dicoms))
     elif seqinfo:
@@ -100,7 +101,7 @@ def prep_conversion(sid, dicoms, outdir, heuristic, converter, anon_sid,
         anon_outdir = outdir
 
     # Generate heudiconv info folder
-    idir = op.join(outdir, '.heudiconv', sid)
+    idir = op.join(outdir, '.heudiconv', anon_sid)
     if bids and ses:
         idir = op.join(idir, 'ses-%s' % str(ses))
     if anon_outdir == outdir:
@@ -194,7 +195,8 @@ def prep_conversion(sid, dicoms, outdir, heuristic, converter, anon_sid,
                 bids=bids,
                 outdir=tdir,
                 min_meta=min_meta,
-                overwrite=overwrite,)
+                overwrite=overwrite,
+                dcmconfig=dcmconfig,)
 
     for item_dicoms in filegroup.values():
         clear_temp_dicoms(item_dicoms)
@@ -211,7 +213,8 @@ def prep_conversion(sid, dicoms, outdir, heuristic, converter, anon_sid,
 
 
 def convert(items, converter, scaninfo_suffix, custom_callable, with_prov,
-            bids, outdir, min_meta, overwrite, symlink=True, prov_file=None):
+            bids, outdir, min_meta, overwrite, symlink=True, prov_file=None,
+            dcmconfig=None):
     """Perform actual conversion (calls to converter etc) given info from
     heuristic's `infotodict`
 
@@ -241,9 +244,12 @@ def convert(items, converter, scaninfo_suffix, custom_callable, with_prov,
         if not isinstance(outtypes, (list, tuple)):
             outtypes = (outtypes,)
 
-        prefix_dirname = op.dirname(prefix + '.ext')
+        prefix_dirname = op.dirname(prefix)
         outname_bids = prefix + '.json'
         bids_outfiles = []
+        # set empty outname and scaninfo in case we only want dicoms
+        outname = ''
+        scaninfo = ''
         lgr.info('Converting %s (%d DICOMs) -> %s . '
                  'Converter: %s . Output types: %s',
                  prefix, len(item_dicoms), prefix_dirname, converter, outtypes)
@@ -258,11 +264,6 @@ def convert(items, converter, scaninfo_suffix, custom_callable, with_prov,
                      len(item_dicoms), outtype, overwrite)
             lgr.debug("Includes the following dicoms: %s", item_dicoms)
 
-            seqtype = op.basename(op.dirname(prefix)) if bids else None
-
-            # set empty outname and scaninfo in case we only want dicoms
-            outname = ''
-            scaninfo = ''
             if outtype == 'dicom':
                 convert_dicom(item_dicoms, bids, prefix,
                               outdir, tempdirs, symlink, overwrite)
@@ -278,7 +279,7 @@ def convert(items, converter, scaninfo_suffix, custom_callable, with_prov,
 
                     # run conversion through nipype
                     res, prov_file = nipype_convert(item_dicoms, prefix, with_prov,
-                                                    bids, tmpdir)
+                                                    bids, tmpdir, dcmconfig)
 
                     bids_outfiles = save_converted_files(res, item_dicoms, bids,
                                                          outtype, prefix,
@@ -382,8 +383,25 @@ def convert_dicom(item_dicoms, bids, prefix,
                 shutil.copyfile(filename, outfile)
 
 
-def nipype_convert(item_dicoms, prefix, with_prov, bids, tmpdir):
-    """ """
+def nipype_convert(item_dicoms, prefix, with_prov, bids, tmpdir, dcmconfig=None):
+    """
+    Converts DICOMs grouped from heuristic using Nipype's Dcm2niix interface.
+
+    Parameters
+    ----------
+    item_dicoms : List
+        DICOM files to convert
+    prefix : String
+        Heuristic output path
+    with_prov : Bool
+        Store provenance information
+    bids : Bool
+        Output BIDS sidecar JSONs
+    tmpdir : Directory
+        Conversion working directory
+    dcmconfig : File (optional)
+        JSON file used for additional Dcm2niix configuration
+    """
     import nipype
     if with_prov:
         from nipype import config
@@ -393,9 +411,11 @@ def nipype_convert(item_dicoms, prefix, with_prov, bids, tmpdir):
 
     item_dicoms = list(map(op.abspath, item_dicoms)) # absolute paths
 
-    dicom_dir = op.dirname(item_dicoms[0]) if item_dicoms else None
+    fromfile = dcmconfig if dcmconfig else None
+    if fromfile:
+        lgr.info("Using custom config file %s", fromfile)
 
-    convertnode = Node(Dcm2niix(), name='convert')
+    convertnode = Node(Dcm2niix(from_file=fromfile), name='convert')
     convertnode.base_dir = tmpdir
     convertnode.inputs.source_names = item_dicoms
     convertnode.inputs.out_filename = op.basename(op.dirname(prefix))
@@ -441,8 +461,7 @@ def save_converted_files(res, item_dicoms, bids, outtype, prefix, outname_bids, 
     """
     from nipype.interfaces.base import isdefined
 
-    prefix_dirname  = op.dirname(prefix + '.ext')
-    prefix_basename = op.basename(prefix)
+    prefix_dirname, prefix_basename = op.split(prefix)
 
     bids_outfiles = []
     res_files = res.outputs.converted_files
@@ -474,8 +493,8 @@ def save_converted_files(res, item_dicoms, bids, outtype, prefix, outname_bids, 
         # Also copy BIDS files although they might need to
         # be merged/postprocessed later
         bids_files = sorted(res.outputs.bids
-                      if len(res.outputs.bids) == len(res_files)
-                      else [None] * len(res_files))
+                     if len(res.outputs.bids) == len(res_files)
+                     else [None] * len(res_files))
 
         ###   Do we have a multi-echo series?   ###
         #   Some Siemens sequences (e.g. CMRR's MB-EPI) set the label 'TE1',
@@ -485,94 +504,108 @@ def save_converted_files(res, item_dicoms, bids, outtype, prefix, outname_bids, 
         #   so the first NIfTI file does not correspond to echo-1, etc. So, we
         #   need to know, beforehand, whether we are dealing with a multi-echo
         #   series. To do that, the most straightforward way is to read the
-        #   echo times for all bids_files and see if they are not all the same.
-        # Get the echo times:
-        echoTimes = [load_json(bids_file).get('EchoTime') for bids_file in bids_files]
+        #   echo times for all bids_files and see if they are all the same or not.
+
+        # Check for echotime information
+        echo_times = set()
+
+        for bids_file in bids_files:
+            if bids_file:
+                # check for varying EchoTimes
+                echot = load_json(bids_file).get('EchoTime', None)
+                if echot is not None:
+                    echo_times.add(echot)
 
         # To see if the echo times are the same, convert it to a set and see if
-        #   there is only one:
-        if ( len(set(echoTimes)) == 1 ): multiecho = False
-        else                           : multiecho = True
+        # only one remains:
+        is_multiecho = len(echo_times) >= 1 if echo_times else False
 
-        ###   Loop through the bids_files, set the output name and save files   ###
-
+        ### Loop through the bids_files, set the output name and save files
         for fl, suffix, bids_file in zip(res_files, suffixes, bids_files):
-            # load the json file info:
-            fileinfo = load_json(bids_file)
 
-            # set the prefix basename for this specific file (we'll modify it, and
-            #   we don't want to modify it for all the bids_files):
+            # TODO: monitor conversion duration
+            if bids_file:
+                fileinfo = load_json(bids_file)
+
+            # set the prefix basename for this specific file (we'll modify it,
+            # and we don't want to modify it for all the bids_files):
             this_prefix_basename = prefix_basename
 
             # _sbref sequences reconstructing magnitude and phase generate
             # two NIfTI files IN THE SAME SERIES, so we cannot just add
             # the suffix, if we want to be bids compliant:
-            if ( bids and (this_prefix_basename[-6:] == '_sbref') ):
+            if bids_file and this_prefix_basename.endswith('_sbref'):
                 # Check to see if it is magnitude or phase reconstruction:
-                if   ('M' in fileinfo.get('ImageType')): mag_or_phase = 'magnitude'
-                elif ('P' in fileinfo.get('ImageType')): mag_or_phase = 'phase'
-                else                                   : mag_or_phase = suffix
+                if 'M' in fileinfo.get('ImageType'):
+                    mag_or_phase = 'magnitude'
+                elif 'P' in fileinfo.get('ImageType'):
+                    mag_or_phase = 'phase'
+                else:
+                    mag_or_phase = suffix
 
-                # If "_rec-'mag_or_phase'" is not already there, check where to insert it:
-                if not (("_rec-%s" % mag_or_phase) in this_prefix_basename):
+                # Insert reconstruction label
+                if not ("_rec-%s" % mag_or_phase) in this_prefix_basename:
 
-                    # If "_rec-" is specified, append the 'mag_or_phase' value.
+                    # If "_rec-" is specified, prepend the 'mag_or_phase' value.
                     if ('_rec-' in this_prefix_basename):
-                        spt = this_prefix_basename.split('_rec-',1)
-                        # grab the reconstruction type (grab whatever we have before the next "_"):
-                        spt_spt = spt[1].split('_',1)
-                        # update 'this_prefix_basename':
-                        this_prefix_basename = "%s_rec-%s-%s_%s" % (spt[0], spt_spt[0], mag_or_phase, spt_spt[1])
+                        this_prefix_basename = this_prefix_basename.replace(
+                            '_rec-', "_rec-%s-" % (mag_or_phase), 1
+                        )
 
                     # If not, insert "_rec-" + 'mag_or_phase' into the prefix_basename
                     #   **before** "_run", "_echo" or "_sbref", whichever appears first:
                     else:
-                        for my_str in ['_run', '_echo', '_sbref']:
-                            if (my_str in this_prefix_basename):
-                                spt = this_prefix_basename.split(my_str, 1)
-                                this_prefix_basename = "%s_rec-%s%s%s" % (spt[0], mag_or_phase, my_str, spt[1])
+                        for label in ['_run', '_echo', '_sbref']:
+                            if (label in this_prefix_basename):
+                                this_prefix_basename = this_prefix_basename.replace(
+                                    label, "_rec-%s%s" % (mag_or_phase, label), 1
+                                )
                                 break
 
-            # Now check if this run is multi-echo (Note: it can be _sbref and multiecho, so
-            #    don't use "elif"):
-            # For multi-echo sequences, we have to specify the echo number in the file name:
-            if ( bids and multiecho ):
+            # Now check if this run is multi-echo
+            # (Note: it can be _sbref and multiecho, so don't use "elif"):
+            # For multi-echo sequences, we have to specify the echo number in
+            # the file name:
+            if bids_file and is_multiecho:
                 # Get the EchoNumber from json file info.  If not present, it's echo-1
-                echoNumber=( fileinfo.get('EchoNumber') or 1 )
+                echo_number = fileinfo.get('EchoNumber', 1)
 
+
+                supported_multiecho = ['_bold', '_epi', '_sbref', '_T1w']
                 # Now, decide where to insert it.
                 # Insert it **before** the following string(s), whichever appears first.
-                # (Note: If you decide to support multi-echo for other sequences (e.g.
-                #    ME-MPRAGE), add the string before which you want to add the echo number
-                #    to the list below):
-                for my_str in ['_bold', '_sbref', '_T1w']:
-                    if (my_str in this_prefix_basename):
-                        spt = this_prefix_basename.split(my_str, 1)
-                        this_prefix_basename = "%s_echo-%s%s%s" % (spt[0], echoNumber, my_str, spt[1])
+                for imgtype in supported_multiecho:
+                    if (imgtype in this_prefix_basename):
+                        this_prefix_basename = this_prefix_basename.replace(
+                            imgtype, "_echo-%d%s" % (echo_number, imgtype)
+                        )
                         break
 
             # For Scout runs with multiple NIfTI images per run:
             if ( bids and ('scout' in this_prefix_basename.lower()) ):
                 # in some cases (more than one slice slab), there are several
                 #   NIfTI images in the scout run, so distinguish them with "_acq-"
-                spt = this_prefix_basename.split('_acq-Scout', 1)
-                this_prefix_basename = "%s%s%s%s" % (spt[0], '_acq-Scout', suffix, spt[1])
+                this_prefix_basename = this_prefix_basename.replace(
+                    '_acq-Scout', "_acq-Scout%s" % suffix ,1
+                )
 
             # Fallback option:
             # If we have failed to modify this_prefix_basename, because it didn't fall
             #   into any of the options above, just add the suffix at the end:
-            if ( this_prefix_basename == prefix_basename ):
-                this_prefix_basename = "%s%s" % (this_prefix_basename, suffix)
+            if this_prefix_basename == prefix_basename:
+                this_prefix_basename += suffix
 
-            # Finally, form the outname by stitch the directory and outtype:
-            outname = "%s/%s.%s" % (prefix_dirname, this_prefix_basename, outtype)
+            # Finally, form the outname by stitching the directory and outtype:
+            outname = op.join(prefix_dirname, this_prefix_basename)
+            outfile = outname + '.' + outtype
 
             # Write the files needed:
-            safe_copyfile(fl, outname, overwrite)
+            safe_copyfile(fl, outfile, overwrite)
             if bids_file:
-                outname_bids_file = "%s.json" % (outname.strip(outtype))
+                outname_bids_file = "%s.json" % (outname)
                 safe_copyfile(bids_file, outname_bids_file, overwrite)
                 bids_outfiles.append(outname_bids_file)
+
     # res_files is not a list
     else:
         outname = "{}.{}".format(prefix, outtype)

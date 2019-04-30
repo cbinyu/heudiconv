@@ -12,6 +12,9 @@ import os.path as op
 from pathlib import Path
 from collections import namedtuple
 from glob import glob
+from subprocess import check_output
+
+from nipype.utils.filemanip import which
 
 import logging
 lgr = logging.getLogger(__name__)
@@ -103,9 +106,18 @@ def docstring_parameter(*sub):
 
 
 def anonymize_sid(sid, anon_sid_cmd):
-    from subprocess import check_output
+
     cmd = [anon_sid_cmd, sid]
-    return check_output(cmd).strip()
+    shell_return = check_output(cmd)
+
+    if all([sys.version_info[0] > 2,
+            isinstance(shell_return, bytes),
+            isinstance(sid, str)]):
+        anon_sid = shell_return.decode()
+    else:
+        anon_sid = shell_return
+
+    return anon_sid.strip()
 
 
 def create_file_if_missing(filename, content):
@@ -171,7 +183,7 @@ def assure_no_file_exists(path):
         os.unlink(path)
 
 
-def save_json(filename, data, indent=4):
+def save_json(filename, data, indent=4, sort_keys=True, pretty=False):
     """Save data to a json file
 
     Parameters
@@ -180,11 +192,17 @@ def save_json(filename, data, indent=4):
         Filename to save data in.
     data : dict
         Dictionary to save in json file.
+    indent : int, optional
+    sort_keys : bool, optional
+    pretty : bool, optional
 
     """
     assure_no_file_exists(filename)
     with open(filename, 'w') as fp:
-        fp.write(_canonical_dumps(data, sort_keys=True, indent=indent))
+        fp.write(
+            (json_dumps_pretty if pretty else _canonical_dumps)(
+                data, sort_keys=sort_keys, indent=indent)
+        )
 
 
 def json_dumps_pretty(j, indent=2, sort_keys=True):
@@ -201,8 +219,16 @@ def json_dumps_pretty(j, indent=2, sort_keys=True):
     # uniform no spaces before ]
     js_ = re.sub(" *\]", "]", js_)
     # uniform spacing before numbers
-    js_ = re.sub('  *("?[-+.0-9e]+"?)(?P<space> ?)[ \n]*',
-                 r' \1\g<space>', js_)
+    # But that thing could screw up dates within strings which would have 2 spaces
+    # in a date like Mar  3 2017, so we do negative lookahead to avoid changing
+    # in those cases
+    #import pdb; pdb.set_trace()
+    js_ = re.sub(
+        '(?<!\w{3})'    # negative lookbehind for the month
+        '  *("?[-+.0-9e]+"?)'
+        '(?! [123]\d{3})'  # negative lookahead for a year
+        '(?P<space> ?)[ \n]*',
+        r' \1\g<space>', js_)
     # no spaces after [
     js_ = re.sub('\[ ', '[', js_)
     # the load from the original dump and reload from tuned up
