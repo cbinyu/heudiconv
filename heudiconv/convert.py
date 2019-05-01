@@ -533,8 +533,9 @@ def save_converted_files(res, item_dicoms, bids, outtype, prefix, outname_bids, 
 
             # _sbref sequences reconstructing magnitude and phase generate
             # two NIfTI files IN THE SAME SERIES, so we cannot just add
-            # the suffix, if we want to be bids compliant:
-            if bids_file and this_prefix_basename.endswith('_sbref'):
+            # the suffix, if we want to be bids compliant. In general, look
+            # for len(suffixes)>len(echo_times):
+            if bids_file and len(suffixes)>len(echo_times):
                 # Check to see if it is magnitude or phase reconstruction:
                 if 'M' in fileinfo.get('ImageType'):
                     mag_or_phase = 'magnitude'
