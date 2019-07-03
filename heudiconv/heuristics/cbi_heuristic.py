@@ -9,12 +9,6 @@ import os
 #        for the coil sensitivity profile, but also keeping the original?)
 #
 #        Maybe I should use ".lower()" ???
-#
-#        How to treat Mag and Phase images for the same run?
-#        Right now, it treats them as two different series, so they have
-#        a different run number.  However, they really are the same run no.
-#        I can check the "image_type" and see if it has 'P' in it (phase), and
-#        if so, go to the previous one with 'M' and use the same run number?
 
 def create_key(template, outtype=('nii.gz','dicom'), annotation_classes=None):
     if template is None or not template:
@@ -155,7 +149,8 @@ def infotodict(seqinfo):
         #  and then we search if the phase and/or _SBRef are present.
         if ((s.dim4 >= 4) and ('epfid2d' in s.sequence_name)
                           and (('M' in s.image_type) or ('FMRI' in s.image_type))
-                          and (s.series_description[-6:].lower() != '_sbref')):
+                          and (s.series_description[-6:].lower() != '_sbref')
+                          and not ('DERIVED' in s.image_type)):
 
             ###   functional -- check PE direction   ###
             # ('_PA' or '_rev' means 'reversed')
