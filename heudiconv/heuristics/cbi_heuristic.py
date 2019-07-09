@@ -59,6 +59,7 @@ def infotodict(seqinfo):
     #   to be only 'dicom':
     # anat:
     t1_scout = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-Scout_run-{item:02d}_T1w', outtype = ('dicom',))
+    t1_dicom = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_T1w', outtype = ('dicom',))
     t2_dicom = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_T2w', outtype = ('dicom',))
     # Misc:
     phoenix_doc = create_key('{bids_subject_session_dir}/misc/{bids_subject_session_prefix}_phoenix', outtype = ('dicom',))
@@ -68,7 +69,7 @@ def infotodict(seqinfo):
             fmap_topup:[], fmap_topup_AP:[], fmap_topup_PA:[], fmap_topup_RL:[], fmap_topup_LR:[],
             fmap_gre_mag:[], fmap_gre_phase:[],
             fmap_dwi:[], fmap_dwi_AP:[], fmap_dwi_PA:[], fmap_dwi_RL:[], fmap_dwi_LR:[], fmap_dwi_AP_sbref:[],
-            t1_scout:[], t2_dicom: [], phoenix_doc:[]}
+            t1_scout:[], t1_dicom: [], t2_dicom: [], phoenix_doc:[]}
 
     for idx, s in enumerate(seqinfo):
         #pdb.set_trace()
@@ -97,7 +98,17 @@ def infotodict(seqinfo):
                 acq = 'highresrev'
             else:
                 acq = 'highres'
-            info[t1].append({'item': s.series_id, 'acq': acq})
+            # If this image is NOT normalized, check if the previous or the following
+            #   one has identical acquisition date and time.  If so, we'll keep only
+            #   the normalized version, and for this one we keep just the DICOM.
+            # Otherwise, we extract it:
+            if ( ('NORM' not in s.image_type) and
+                 ( ( (idx+1 < len(seqinfo)) and (s.date == seqinfo[idx+1].date) and (s.time == seqinfo[idx+1].time) ) or
+                     ( (idx > 0 ) and (s.date == seqinfo[idx-1].date) and (s.time == seqinfo[idx-1].time) ) ) ):
+                info[t1_dicom].append({'item': s.series_id, 'acq': acq})
+            else:
+                info[t1].append({'item': s.series_id, 'acq': acq})
+
         # 3) FSE T1w:
         # single volume, series description includes TSE or FSE, protocol name includes T1, T1w
         if ((s.dim4 == 1) and ('t1' in s.protocol_name.lower()) and ('tse' in s.sequence_name)):
@@ -127,7 +138,16 @@ def infotodict(seqinfo):
                 acq = 'highresrev'
             else:
                 acq = 'highres'
-            info[t2].append({'item': s.series_id, 'acq': acq})
+            # If this image is NOT normalized, check if the previous or the following
+            #   one has identical acquisition date and time.  If so, we'll keep only
+            #   the normalized version, and for this one we keep just the DICOM.
+            # Otherwise, we extract it:
+            if ( ('NORM' not in s.image_type) and
+                 ( ( (idx+1 < len(seqinfo)) and (s.date == seqinfo[idx+1].date) and (s.time == seqinfo[idx+1].time) ) or
+                     ( (idx > 0 ) and (s.date == seqinfo[idx-1].date) and (s.time == seqinfo[idx-1].time) ) ) ):
+                info[t2_dicom].append({'item': s.series_id, 'acq': acq})
+            else:
+                info[t2].append({'item': s.series_id, 'acq': acq})
 
         # 2) Fast Spin-Echo used as a localizer:
         # single volume, sequence name: 'h2d1' ('haste')"
