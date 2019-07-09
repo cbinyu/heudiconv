@@ -101,8 +101,10 @@ def infotodict(seqinfo):
             # If this image is NOT normalized, check if the previous or the following
             #   one has identical acquisition date and time.  If so, we'll keep only
             #   the normalized version, and for this one we keep just the DICOM.
+            #   (Note: older versions of heudiconv don't include 'time'):
             # Otherwise, we extract it:
             if ( ('NORM' not in s.image_type) and
+                 hasattr(s,'time') and
                  ( ( (idx+1 < len(seqinfo)) and (s.date == seqinfo[idx+1].date) and (s.time == seqinfo[idx+1].time) ) or
                      ( (idx > 0 ) and (s.date == seqinfo[idx-1].date) and (s.time == seqinfo[idx-1].time) ) ) ):
                 info[t1_dicom].append({'item': s.series_id, 'acq': acq})
@@ -141,8 +143,10 @@ def infotodict(seqinfo):
             # If this image is NOT normalized, check if the previous or the following
             #   one has identical acquisition date and time.  If so, we'll keep only
             #   the normalized version, and for this one we keep just the DICOM.
+            #   (Note: older versions of heudiconv don't include 'time'):
             # Otherwise, we extract it:
             if ( ('NORM' not in s.image_type) and
+                 hasattr(s,'time') and
                  ( ( (idx+1 < len(seqinfo)) and (s.date == seqinfo[idx+1].date) and (s.time == seqinfo[idx+1].time) ) or
                      ( (idx > 0 ) and (s.date == seqinfo[idx-1].date) and (s.time == seqinfo[idx-1].time) ) ) ):
                 info[t2_dicom].append({'item': s.series_id, 'acq': acq})
