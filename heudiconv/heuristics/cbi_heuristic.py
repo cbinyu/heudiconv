@@ -128,9 +128,9 @@ def infotodict(seqinfo):
         # 1) Standard high-res T2w used for cortical segmentation:
         # single volume, protocol name including T2, T2w, TSE, SPACE, SPC:
         if (s.dim4 == 1) and (('T2' in s.protocol_name) or
-                              ('TSE' in s.protocol_name) or
-                              ('SPACE' in s.protocol_name) or
-                              ('SPC' in s.protocol_name) ):
+                              ('tse' in s.protocol_name.lower()) or
+                              ('space' in s.protocol_name.lower()) or
+                              ('spc' in s.protocol_name.lower()) ):
             # check the PE ('_PA' or '_rev' means 'reversed'):
             if ('_AP' in s.protocol_name):
                 acq = 'highresAP'
