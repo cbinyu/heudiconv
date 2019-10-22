@@ -90,9 +90,9 @@ def infotodict(seqinfo):
                                 ('mpr' in s.protocol_name.lower()) ) and
                               ('fl' in s.sequence_name)):
             # check the PE ('_PA' or '_rev' means 'reversed'):
-            if ('_AP' in s.protocol_name):
+            if (('_AP' in s.protocol_name) or ('-AP' in s.protocol_name)):
                 acq = 'highresAP'
-            elif ('_PA' in s.protocol_name):
+            elif (('_PA' in s.protocol_name) or ('-PA' in s.protocol_name)):
                 acq = 'highresPA'
             elif ('_rev' in s.protocol_name):
                 acq = 'highresrev'
@@ -115,9 +115,9 @@ def infotodict(seqinfo):
         # single volume, series description includes TSE or FSE, protocol name includes T1, T1w
         if ((s.dim4 == 1) and ('t1' in s.protocol_name.lower()) and ('tse' in s.sequence_name)):
             # check the PE ('_PA' or '_rev' means 'reversed'):
-            if ('_AP' in s.protocol_name):
+            if (('_AP' in s.protocol_name) or ('-AP' in s.protocol_name)):
                 acq = 'fseAP'
-            elif ('_PA' in s.protocol_name):
+            elif (('_PA' in s.protocol_name) or ('-PA' in s.protocol_name)):
                 acq = 'fsePA'
             elif ('_rev' in s.protocol_name):
                 acq = 'fserev'
@@ -132,9 +132,9 @@ def infotodict(seqinfo):
                               ('space' in s.protocol_name.lower()) or
                               ('spc' in s.protocol_name.lower()) ):
             # check the PE ('_PA' or '_rev' means 'reversed'):
-            if ('_AP' in s.protocol_name):
+            if (('_AP' in s.protocol_name) or ('-AP' in s.protocol_name)):
                 acq = 'highresAP'
-            elif ('_PA' in s.protocol_name):
+            elif (('_PA' in s.protocol_name) or ('-PA' in s.protocol_name)):
                 acq = 'highresPA'
             elif ('_rev' in s.protocol_name):
                 acq = 'highresrev'
@@ -179,9 +179,9 @@ def infotodict(seqinfo):
             ###   functional -- check PE direction   ###
             # ('_PA' or '_rev' means 'reversed')
             # (This is common to all functional runs, so we check it first)
-            if ('_AP' in s.protocol_name):
+            if (('_AP' in s.protocol_name) or ('-AP' in s.protocol_name)):
                 acq = 'AP'
-            elif ('_PA' in s.protocol_name):
+            elif (('_PA' in s.protocol_name) or ('-PA' in s.protocol_name)):
                 acq = 'PA'
             elif ('_rev' in s.protocol_name):
                 acq = 'rev'
@@ -289,13 +289,13 @@ def infotodict(seqinfo):
             if (s.series_description[-4:] != '_SBRef'):    # sbref from MB diffusion have epse2d in
                                                            #  sequence_name, so don't include them
                 ###   SE distortion: -- check PE direction   ###
-                if ('_AP' in s.protocol_name):
+                if (('_AP' in s.protocol_name) or ('-AP' in s.protocol_name)):
                     info[fmap_topup_AP].append({'item': s.series_id})
-                elif ('_PA' in s.protocol_name):
+                elif (('_PA' in s.protocol_name) or ('-PA' in s.protocol_name)):
                     info[fmap_topup_PA].append({'item': s.series_id})
-                elif ('_RL' in s.protocol_name):
+                elif (('_RL' in s.protocol_name) or ('-RL' in s.protocol_name)):
                     info[fmap_topup_RL].append({'item': s.series_id})
-                elif ('_LR' in s.protocol_name):
+                elif (('_LR' in s.protocol_name) or ('-LR' in s.protocol_name)):
                     info[fmap_topup_LR].append({'item': s.series_id})
                 else:
                     if ('_rev' in s.protocol_name):
@@ -357,16 +357,16 @@ def infotodict(seqinfo):
                 #        because BIDS doesn't allow them.
 
                 # see if we can get the orientation, for topup:
-                if ('_AP' in s.protocol_name):
+                if (('_AP' in s.protocol_name) or ('-AP' in s.protocol_name)):
                     info[fmap_dwi_AP].append({'item': s.series_id})
                     if ( (idx > 0) and
                             (seqinfo[idx - 1].series_description[-4:] == '_SBRef') ):
                         info[fmap_dwi_AP_sbref].append({'item': seqinfo[idx - 1].series_id})
-                elif ('_PA' in s.protocol_name):
+                elif (('_PA' in s.protocol_name) or ('-PA' in s.protocol_name)):
                     info[fmap_dwi_PA].append({'item': s.series_id})
-                elif ('_RL' in s.protocol_name):
+                elif (('_RL' in s.protocol_name) or ('-RL' in s.protocol_name)):
                     info[fmap_dwi_RL].append({'item': s.series_id})
-                elif ('_LR' in s.protocol_name):
+                elif (('_LR' in s.protocol_name) or ('-LR' in s.protocol_name)):
                     info[fmap_dwi_LR].append({'item': s.series_id})
                 else:
                     if ('_rev' in s.protocol_name):
