@@ -1,7 +1,7 @@
 # Heuristics file in use at the NYU's Center for Brain Imaging
 # (Our data come from a Siemens Prisma 3T scanner).
 # Author: Pablo Velasco
-# Date: 03/28/2018
+# Date: 10/25/2019
 
 import os
 
@@ -39,13 +39,11 @@ def infotodict(seqinfo):
     dwi = create_key('{bids_subject_session_dir}/dwi/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_dwi')
     dwi_sbref = create_key('{bids_subject_session_dir}/dwi/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_sbref')
     # fmaps:
-    fmap_topup = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_dir-{direction}_run-{item:02d}_epi')    # for "topup"
-    fmap_topup_AP = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_dir-AP_run-{item:02d}_epi')    # for "topup", AP
-    fmap_topup_PA = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_dir-PA_run-{item:02d}_epi')    # for "topup", PA
-    fmap_topup_RL = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_dir-RL_run-{item:02d}_epi')    # for "topup", RL
-    fmap_topup_LR = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_dir-LR_run-{item:02d}_epi')    # for "topup", LR
+    # For the SE-EPI field-map runs (for topup), we want to have a different key for each direction.  Rather than creating the
+    #  different keys here, we'll create them dynamically, as needed.
     fmap_gre_mag = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-GRE_run-{item:02d}_magnitude')       # GRE fmap
     fmap_gre_phase = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-GRE_run-{item:02d}_phasediff')     #
+    # diffusion:
     fmap_dwi = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-{direction}_run-{item:02d}_epi')
     fmap_dwi_AP = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-AP_run-{item:02d}_epi')
     fmap_dwi_AP_sbref = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-AP_run-{item:02d}_sbref')
@@ -66,7 +64,6 @@ def infotodict(seqinfo):
 
     info = {t1:[], t2:[], pd_bias_body:[], pd_bias_receive:[],
             dwi:[], dwi_sbref:[],
-            fmap_topup:[], fmap_topup_AP:[], fmap_topup_PA:[], fmap_topup_RL:[], fmap_topup_LR:[],
             fmap_gre_mag:[], fmap_gre_phase:[],
             fmap_dwi:[], fmap_dwi_AP:[], fmap_dwi_PA:[], fmap_dwi_RL:[], fmap_dwi_LR:[], fmap_dwi_AP_sbref:[],
             t1_scout:[], t1_dicom: [], t2_dicom: [], phoenix_doc:[]}
@@ -276,12 +273,13 @@ def infotodict(seqinfo):
 
 
         ###   FIELD MAPS   ###
-        # TO-DO: how do we make sure each FM has the same number as the corresponding functional?
 
         # A) Spin-Echo distortion maps
         #    to be used with topup:
+        #    (note: we only look for magnitude images, because we'll catch the phase images below)
         #pdb.set_trace()
         if ((s.dim4 <= 3) and ('epse2d' in s.sequence_name)
+                          and ('M' in s.image_type)
                           and (  ('dist'  in s.protocol_name.lower())
                               or ('map'   in s.protocol_name.lower())
                               or ('field' in s.protocol_name.lower()) )):
@@ -290,23 +288,58 @@ def infotodict(seqinfo):
                                                            #  sequence_name, so don't include them
                 ###   SE distortion: -- check PE direction   ###
                 if (('_AP' in s.protocol_name) or ('-AP' in s.protocol_name)):
-                    info[fmap_topup_AP].append({'item': s.series_id})
+                    direction = 'AP'
                 elif (('_PA' in s.protocol_name) or ('-PA' in s.protocol_name)):
-                    info[fmap_topup_PA].append({'item': s.series_id})
+                    direction = 'PA'
                 elif (('_RL' in s.protocol_name) or ('-RL' in s.protocol_name)):
-                    info[fmap_topup_RL].append({'item': s.series_id})
+                    direction = 'RL'
                 elif (('_LR' in s.protocol_name) or ('-LR' in s.protocol_name)):
-                    info[fmap_topup_LR].append({'item': s.series_id})
+                    direction = 'LR'
+                elif ('_rev' in s.protocol_name):
+                    direction = 'rev'
                 else:
-                    if ('_rev' in s.protocol_name):
-                        direction = 'rev'
-                    else:
-                        direction = 'normal'
+                    direction = 'normal'
 
-                    info[fmap_topup].append({'item': s.series_id, 'direction': direction})
+                # Below, for both magnitude and phase cases, we check if a template is defined
+                #    with that specific direction tag. That way we can assure the run number
+                #    (run-01, run-02, ...) only applies for that specific direction tag, not
+                #    for just any fmap. E.g., if I have two fmaps, with opposed directions
+                #    they should be called: dir-AP_run-01 and dir-PA_run-01, as opposed to
+                #    dir-AP_run-01 and dir-PA_run-02.  So each direction tag should be assigned
+                #    to its own template.
 
+                ###   SE-fmap -- is phase image present?   ###
+                # At least for Siemens systems, if magnitude/phase was selected, the
+                #  phase images come as a separate series immediatelly following the
+                #  magnitude series.
+                # (note: make sure you don't check beyond the number of elements in seqinfo...)
 
-            # TO-DO: do more classification here (task, etc.)
+                if (idx+1 < len(seqinfo)) and ('P' in seqinfo[idx+1].image_type):
+                    # we have a magnitude/phase pair:
+
+                    # dictionary keys specific for this SE-fmap direction:
+                    mykey_mag = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_rec-magnitude_dir-%s_run-{item:02d}_epi' % direction)
+                    mykey_pha = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_rec-phase_dir-%s_run-{item:02d}_epi' % direction)
+                    try:
+                        # check if "info" already has this key by trying to append to it.
+                        info[mykey_mag].append({'item': s.series_id})
+                        info[mykey_pha].append({'item': seqinfo[idx + 1].series_id})
+                    except KeyError:
+                        # if it doesn't, add this key, specifying the first item:
+                        info[mykey_mag] = [{'item': s.series_id}]
+                        info[mykey_pha] = [{'item': seqinfo[idx + 1].series_id}]
+
+                else:
+                    # we only have a magnitude image
+
+                    # dictionary key specific for this SE-fmap direction:
+                    mykey = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_dir-%s_run-{item:02d}_epi' % direction)
+                    try:
+                        # check if "info" already has this key by trying to append to it.
+                        info[mykey].append({'item': s.series_id})
+                    except KeyError:
+                        # if it doesn't, add this key, specifying the first item:
+                        info[mykey] = [{ 'item': s.series_id}]
 
 
 
