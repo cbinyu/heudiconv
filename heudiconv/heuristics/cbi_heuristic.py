@@ -68,6 +68,8 @@ def infotodict(seqinfo):
             fmap_dwi:[], fmap_dwi_AP:[], fmap_dwi_PA:[], fmap_dwi_RL:[], fmap_dwi_LR:[], fmap_dwi_AP_sbref:[],
             t1_scout:[], t1_dicom: [], t2_dicom: [], phoenix_doc:[]}
 
+    PE_directions = ['AP','PA','RL','LR','rev']  # valid phase-encoding directions in the protocol name
+
     for idx, s in enumerate(seqinfo):
         #pdb.set_trace()
         # s is a namedtuple with fields equal to the names of the columns
@@ -86,15 +88,16 @@ def infotodict(seqinfo):
                                 (('mp' in s.protocol_name.lower()) and ('rage' in s.protocol_name.lower())) or
                                 ('mpr' in s.protocol_name.lower()) ) and
                               ('fl' in s.sequence_name)):
-            # check the PE ('_PA' or '_rev' means 'reversed'):
-            if (('_AP' in s.protocol_name) or ('-AP' in s.protocol_name)):
-                acq = 'highresAP'
-            elif (('_PA' in s.protocol_name) or ('-PA' in s.protocol_name)):
-                acq = 'highresPA'
-            elif ('_rev' in s.protocol_name):
-                acq = 'highresrev'
-            else:
-                acq = 'highres'
+            # check the PE direction:
+            for direction in PE_directions:
+                if (   ('_{}'.format(direction) in s.protocol_name)
+                    or ('-{}'.format(direction) in s.protocol_name)):
+                        break    # we keep the current value of "direction"
+                else:
+                        direction = ''    # fallback
+
+            acq = 'highres{}'.format(direction)   # note: if direction is empty, aqc='highres'
+
             # If this image is NOT normalized, check if the previous or the following
             #   one has identical acquisition date and time.  If so, we'll keep only
             #   the normalized version, and for this one we keep just the DICOM.
@@ -111,16 +114,17 @@ def infotodict(seqinfo):
         # 3) FSE T1w:
         # single volume, series description includes TSE or FSE, protocol name includes T1, T1w
         if ((s.dim4 == 1) and ('t1' in s.protocol_name.lower()) and ('tse' in s.sequence_name)):
-            # check the PE ('_PA' or '_rev' means 'reversed'):
-            if (('_AP' in s.protocol_name) or ('-AP' in s.protocol_name)):
-                acq = 'fseAP'
-            elif (('_PA' in s.protocol_name) or ('-PA' in s.protocol_name)):
-                acq = 'fsePA'
-            elif ('_rev' in s.protocol_name):
-                acq = 'fserev'
-            else:
-                acq = 'fse'
+            # check the PE direction:
+            for direction in PE_directions:
+                if (   ('_{}'.format(direction) in s.protocol_name)
+                    or ('-{}'.format(direction) in s.protocol_name)):
+                        break    # we keep the current value of "direction"
+                else:
+                        direction = ''    # fallback
+
+            acq = 'fse{}'.format(direction)   # note: if direction is empty, aqc='fse'
             info[t1].append({'item': s.series_id, 'acq': acq})
+
         ###   T2w   ###
         # 1) Standard high-res T2w used for cortical segmentation:
         # single volume, protocol name including T2, T2w, TSE, SPACE, SPC:
@@ -128,15 +132,16 @@ def infotodict(seqinfo):
                               ('tse' in s.protocol_name.lower()) or
                               ('space' in s.protocol_name.lower()) or
                               ('spc' in s.protocol_name.lower()) ):
-            # check the PE ('_PA' or '_rev' means 'reversed'):
-            if (('_AP' in s.protocol_name) or ('-AP' in s.protocol_name)):
-                acq = 'highresAP'
-            elif (('_PA' in s.protocol_name) or ('-PA' in s.protocol_name)):
-                acq = 'highresPA'
-            elif ('_rev' in s.protocol_name):
-                acq = 'highresrev'
-            else:
-                acq = 'highres'
+            # check the PE direction:
+            for direction in PE_directions:
+                if (   ('_{}'.format(direction) in s.protocol_name)
+                    or ('-{}'.format(direction) in s.protocol_name)):
+                        break    # we keep the current value of "direction"
+                else:
+                        direction = ''    # fallback
+
+            acq = 'highres{}'.format(direction)   # note: if direction is empty, aqc='highres'
+
             # If this image is NOT normalized, check if the previous or the following
             #   one has identical acquisition date and time.  If so, we'll keep only
             #   the normalized version, and for this one we keep just the DICOM.
@@ -174,35 +179,25 @@ def infotodict(seqinfo):
                           and not ('DERIVED' in s.image_type)):
 
             ###   functional -- check PE direction   ###
-            # ('_PA' or '_rev' means 'reversed')
-            # (This is common to all functional runs, so we check it first)
-            if (('_AP' in s.protocol_name) or ('-AP' in s.protocol_name)):
-                acq = 'AP'
-            elif (('_PA' in s.protocol_name) or ('-PA' in s.protocol_name)):
-                acq = 'PA'
-            elif ('_rev' in s.protocol_name):
-                acq = 'rev'
-            else:
-                acq = 'normal'
-
+            for direction in PE_directions:
+                if (   ('_{}'.format(direction) in s.protocol_name)
+                    or ('-{}'.format(direction) in s.protocol_name)):
+                        break    # we keep the current value of "direction"
+                else:
+                        direction = 'normal'    # fallback
+            # we will write the 'direction' in under the 'acq-' tag.
+            acq = direction
 
             ###   functional -- check task name   ###
-            task = ''
-            if ('rest' in s.protocol_name.lower()):
-                task = 'rest'
-            elif ('face' in s.protocol_name.lower()):
-                task = 'face'
-            elif ('conflict' in s.protocol_name.lower()):
-                task = 'conflict'
-            elif ('gambl' in s.protocol_name.lower()):
-                task = 'gamble'
-            elif (s.protocol_name == "Fix"):
-                task = 'fix'
-            elif (s.protocol_name == "Films"):
-                task = 'films'
-            elif (s.protocol_name == "Inscapes"):
-                task = 'inscapes'
-            elif ('task' in s.protocol_name.lower()):
+            known_tasks=['rest', 'face', 'conflict', 'gamble', 'fix', 'films', 'inscapes']
+            for task in known_tasks:
+                if (task in s.protocol_name.lower()):
+                    break    # we keep the current value for "task"
+                else:
+                    task = ''
+
+            # if we don't find a known task, try finding the keyword "task":
+            if ( task == '' ) and ('task' in s.protocol_name.lower()):
                 # we want to capture what comes after "task", until the next
                 #    dash ("-") or underscore ("_"):
                 task = s.protocol_name.lower().split('task')[1]
@@ -287,18 +282,12 @@ def infotodict(seqinfo):
             if (s.series_description[-4:] != '_SBRef'):    # sbref from MB diffusion have epse2d in
                                                            #  sequence_name, so don't include them
                 ###   SE distortion: -- check PE direction   ###
-                if (('_AP' in s.protocol_name) or ('-AP' in s.protocol_name)):
-                    direction = 'AP'
-                elif (('_PA' in s.protocol_name) or ('-PA' in s.protocol_name)):
-                    direction = 'PA'
-                elif (('_RL' in s.protocol_name) or ('-RL' in s.protocol_name)):
-                    direction = 'RL'
-                elif (('_LR' in s.protocol_name) or ('-LR' in s.protocol_name)):
-                    direction = 'LR'
-                elif ('_rev' in s.protocol_name):
-                    direction = 'rev'
-                else:
-                    direction = 'normal'
+                for direction in ['AP','PA','RL','LR','rev']:
+                    if (   ('_{}'.format(direction) in s.protocol_name)
+                        or ('-{}'.format(direction) in s.protocol_name)):
+                        break    # we keep the current value of "direction"
+                    else:
+                        direction = 'normal'    # fallback
 
                 # Below, for both magnitude and phase cases, we check if a template is defined
                 #    with that specific direction tag. That way we can assure the run number
