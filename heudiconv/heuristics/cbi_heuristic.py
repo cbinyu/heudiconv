@@ -19,8 +19,8 @@ def create_key(template, outtype=('nii.gz','dicom'), annotation_classes=None):
 def find_PE_direction_from_protocol_name( prot_name, default_dir_name='normal' ):
     PE_directions = ['AP','PA','RL','LR','rev']  # valid phase-encoding directions in the protocol name
     for direction in PE_directions:
-        if ( ('_{}'.format(direction) in prot_name) or
-             ('-{}'.format(direction) in prot_name) ):
+        if ( ('_'+direction in prot_name) or
+             ('-'+direction in prot_name) ):
             break    # we keep the current value of "direction"
         else:
             direction = default_dir_name    # fallback
@@ -96,7 +96,7 @@ def infotodict(seqinfo):
                               ('fl' in s.sequence_name)):
             # check the PE direction:
             direction = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='' )
-            acq = 'highres{}'.format(direction)   # note: if direction is empty, aqc='highres'
+            acq = 'highres' + direction   # note: if direction is empty, aqc='highres'
 
             # If this image is NOT normalized, check if the previous or the following
             #   one has identical acquisition date and time.  If so, we'll keep only
@@ -116,7 +116,7 @@ def infotodict(seqinfo):
         if ((s.dim4 == 1) and ('t1' in s.protocol_name.lower()) and ('tse' in s.sequence_name)):
             # check the PE direction:
             direction = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='' )
-            acq = 'fse{}'.format(direction)   # note: if direction is empty, aqc='fse'
+            acq = 'fse' + direction   # note: if direction is empty, aqc='fse'
             info[t1].append({'item': s.series_id, 'acq': acq})
 
         ###   T2w   ###
@@ -128,7 +128,7 @@ def infotodict(seqinfo):
                               ('spc' in s.protocol_name.lower()) ):
             # check the PE direction:
             direction = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='' )
-            acq = 'highres{}'.format(direction)   # note: if direction is empty, aqc='highres'
+            acq = 'highres' + direction   # note: if direction is empty, aqc='highres'
 
             # If this image is NOT normalized, check if the previous or the following
             #   one has identical acquisition date and time.  If so, we'll keep only
