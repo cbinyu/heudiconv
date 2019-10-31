@@ -58,6 +58,23 @@ def extract_task_name( prot_name ):
 
     return task_name
 
+
+def add_series_to_info_dict( series_id, mykey, info, acq='' ):
+    # adds a series to the 'info' dictionary.
+    if ( info = None ) or ( mykey = '' ): return error
+
+    if (mykey in info):
+        if ( acq == '' ):
+            info[mykey].append({'item': series_id})
+        else:
+            info[mykey].append({'item': series_id, 'acq': acq})
+    else:
+        # if it isn't, add this key, specifying the first item:
+        if ( acq == '' ):
+            info[mykey] = [{'item': series_id}]
+        else:
+            info[mykey] = [{'item': series_id, 'acq': acq}]
+
     
 def infotodict(seqinfo):
     """Heuristic evaluator for determining which runs belong where
@@ -219,28 +236,16 @@ def infotodict(seqinfo):
 
                 # dictionary keys specific for this task type:
                 mykey_mag = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_rec-magnitude_run-{item:02d}_bold" % task)
-                if (mykey_mag in info):
-                    info[mykey_mag].append({'item': s.series_id, 'acq': acq})
-                else:
-                    # if it isn't, add this key, specifying the first item:
-                    info[mykey_mag] = [{'item': s.series_id, 'acq': acq}]
                 mykey_pha = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_rec-phase_run-{item:02d}_bold" % task)
-                if (mykey_pha in info):
-                    info[mykey_pha].append({'item': seqinfo[idx + 1].series_id, 'acq': acq})
-                else:
-                    # if it isn't, add this key, specifying the first item:
-                    info[mykey_pha] = [{'item': seqinfo[idx + 1].series_id, 'acq': acq}]
+                add_series_to_info_dict( s.series_id, mykey_mag, info, acq )
+                add_series_to_info_dict( seqinfo[idx + 1].series_id, mykey_pha, info, acq )
 
             else:
                 # we only have a magnitude image
 
                 # dictionary key specific for this task type:
                 mykey = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_bold" % task)
-                if (mykey in info):
-                    info[mykey].append({'item': s.series_id, 'acq': acq})
-                else:
-                    # if it isn't, add this key, specifying the first item:
-                    info[mykey] = [{ 'item': s.series_id, 'acq': acq }]
+                add_series_to_info_dict( s.series_id, mykey, info, acq )
 
             ###   SB REF   ###
             # here, within the functional run code, check to see if the
@@ -248,11 +253,7 @@ def infotodict(seqinfo):
             #  same task name and --if possible-- same run number.
             if (idx > 0) and ('_sbref' in seqinfo[idx - 1].series_description.lower()):
                 mykey_sb = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_sbref" % task)
-                if (mykey_sb in info):
-                    info[mykey_sb].append({'item': seqinfo[idx - 1].series_id, 'acq': acq})
-                else:
-                    # if it isn't, add this key, specifying the first item:
-                    info[mykey_sb] = [{'item': seqinfo[idx - 1].series_id, 'acq': acq}]
+                add_series_to_info_dict( seqinfo[idx - 1].series_id, mykey_sb, info, acq )
 
 
         ###   FIELD MAPS   ###
@@ -291,28 +292,16 @@ def infotodict(seqinfo):
 
                     # dictionary keys specific for this SE-fmap direction:
                     mykey_mag = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_rec-magnitude_dir-%s_run-{item:02d}_epi' % direction)
-                    if (mykey_mag in info):
-                        info[mykey_mag].append({'item': s.series_id})
-                    else:
-                        # if it isn't, add this key, specifying the first item:
-                        info[mykey_mag] = [{'item': s.series_id}]
                     mykey_pha = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_rec-phase_dir-%s_run-{item:02d}_epi' % direction)
-                    if (mykey_pha in info):
-                        info[mykey_pha].append({'item': seqinfo[idx + 1].series_id})
-                    else:
-                        # if it isn't, add this key, specifying the first item:
-                        info[mykey_pha] = [{'item': seqinfo[idx + 1].series_id}]
+                    add_series_to_info_dict( s.series_id, mykey_mag, info )
+                    add_series_to_info_dict( seqinfo[idx + 1].series_id, mykey_pha, info )
 
                 else:
                     # we only have a magnitude image
 
                     # dictionary key specific for this SE-fmap direction:
                     mykey = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_dir-%s_run-{item:02d}_epi' % direction)
-                    if (mykey in info):
-                        info[mykey].append({'item': s.series_id})
-                    else:
-                        # if it isn't, add this key, specifying the first item:
-                        info[mykey] = [{ 'item': s.series_id}]
+                    add_series_to_info_dict( s.series_id, mykey, info )
 
 
 
@@ -362,20 +351,12 @@ def infotodict(seqinfo):
 
                 # dictionary key specific for this SE-fmap direction:
                 mykey = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-%s_run-{item:02d}_epi' % direction)
-                if (mykey in info):
-                    info[mykey].append({'item': s.series_id})
-                else:
-                    # if it isn't, add this key, specifying the first item:
-                    info[mykey] = [{ 'item': s.series_id}]
+                add_series_to_info_dict( s.series_id, mykey, info )
 
                 if ( (idx > 0) and
                         (seqinfo[idx - 1].series_description[-4:] == '_SBRef') ):
                     mykey = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-%s_run-{item:02d}_sbref' % direction)
-                    if (mykey in info):
-                        info[mykey].append({'item': seqinfo[idx - 1].series_id})
-                    else:
-                        # if it isn't, add this key, specifying the first item:
-                        info[mykey] = [{ 'item': seqinfo[idx - 1].series_id}]
+                    add_series_to_info_dict( seqinfo[idx - 1].series_id, mykey, info )
 
         ###   PHOENIX FILE   ###
 
