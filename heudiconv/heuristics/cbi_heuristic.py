@@ -291,14 +291,16 @@ def infotodict(seqinfo):
 
                     # dictionary keys specific for this SE-fmap direction:
                     mykey_mag = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_rec-magnitude_dir-%s_run-{item:02d}_epi' % direction)
-                    mykey_pha = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_rec-phase_dir-%s_run-{item:02d}_epi' % direction)
-                    try:
-                        # check if "info" already has this key by trying to append to it.
+                    if (mykey_mag in info):
                         info[mykey_mag].append({'item': s.series_id})
-                        info[mykey_pha].append({'item': seqinfo[idx + 1].series_id})
-                    except KeyError:
-                        # if it doesn't, add this key, specifying the first item:
+                    else:
+                        # if it isn't, add this key, specifying the first item:
                         info[mykey_mag] = [{'item': s.series_id}]
+                    mykey_pha = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_rec-phase_dir-%s_run-{item:02d}_epi' % direction)
+                    if (mykey_pha in info):
+                        info[mykey_pha].append({'item': seqinfo[idx + 1].series_id})
+                    else:
+                        # if it isn't, add this key, specifying the first item:
                         info[mykey_pha] = [{'item': seqinfo[idx + 1].series_id}]
 
                 else:
@@ -306,11 +308,10 @@ def infotodict(seqinfo):
 
                     # dictionary key specific for this SE-fmap direction:
                     mykey = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_dir-%s_run-{item:02d}_epi' % direction)
-                    try:
-                        # check if "info" already has this key by trying to append to it.
+                    if (mykey in info):
                         info[mykey].append({'item': s.series_id})
-                    except KeyError:
-                        # if it doesn't, add this key, specifying the first item:
+                    else:
+                        # if it isn't, add this key, specifying the first item:
                         info[mykey] = [{ 'item': s.series_id}]
 
 
@@ -361,21 +362,19 @@ def infotodict(seqinfo):
 
                 # dictionary key specific for this SE-fmap direction:
                 mykey = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-%s_run-{item:02d}_epi' % direction)
-                try:
-                    # check if "info" already has this key by trying to append to it.
+                if (mykey in info):
                     info[mykey].append({'item': s.series_id})
-                except KeyError:
-                    # if it doesn't, add this key, specifying the first item:
+                else:
+                    # if it isn't, add this key, specifying the first item:
                     info[mykey] = [{ 'item': s.series_id}]
 
                 if ( (idx > 0) and
                         (seqinfo[idx - 1].series_description[-4:] == '_SBRef') ):
                     mykey = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-%s_run-{item:02d}_sbref' % direction)
-                    try:
-                        # check if "info" already has this key by trying to append to it.
+                    if (mykey in info):
                         info[mykey].append({'item': seqinfo[idx - 1].series_id})
-                    except KeyError:
-                        # if it doesn't, add this key, specifying the first item:
+                    else:
+                        # if it isn't, add this key, specifying the first item:
                         info[mykey] = [{ 'item': seqinfo[idx - 1].series_id}]
 
         ###   PHOENIX FILE   ###
