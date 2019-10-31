@@ -1,7 +1,7 @@
 # Heuristics file in use at the NYU's Center for Brain Imaging
 # (Our data come from a Siemens Prisma 3T scanner).
 # Author: Pablo Velasco
-# Date: 10/25/2019
+# Date: 10/31/2019
 
 import os
 
@@ -52,13 +52,10 @@ def infotodict(seqinfo):
     dwi = create_key('{bids_subject_session_dir}/dwi/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_dwi')
     dwi_sbref = create_key('{bids_subject_session_dir}/dwi/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_sbref')
     # fmaps:
-    # For the SE-EPI field-map runs (for topup), we want to have a different key for each direction.  Rather than creating the
-    #  different keys here, we'll create them dynamically, as needed.
+    # For the SE-EPI field-map runs (for topup), both for fmri and dwi, we want to have a different key for
+    #  each PE direction.  Rather than creating the different keys here, we'll create them dynamically, as needed.
     fmap_gre_mag = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-GRE_run-{item:02d}_magnitude')       # GRE fmap
     fmap_gre_phase = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-GRE_run-{item:02d}_phasediff')     #
-    # diffusion:
-    # For the DWI field-map runs (for topup), we want to have a different key for each direction.  Rather than creating the
-    #  different keys here, we'll create them dynamically, as needed.
 
     ###  DICOM only   ###
     # These are images we don't want for analysis, but we still want to keep a copy of
@@ -214,14 +211,16 @@ def infotodict(seqinfo):
 
                 # dictionary keys specific for this task type:
                 mykey_mag = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_rec-magnitude_run-{item:02d}_bold" % task)
-                mykey_pha = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_rec-phase_run-{item:02d}_bold" % task)
-                try:
-                    # check if "info" already has this key by trying to append to it.
-                    info[mykey_mag].append({'item': s.series_id,                'acq': acq})
-                    info[mykey_pha].append({'item': seqinfo[idx + 1].series_id, 'acq': acq})
-                except KeyError:
+                if (mykey_mag in info):
+                    info[mykey_mag].append({'item': s.series_id, 'acq': acq})
+                else:
                     # if it doesn't, add this key, specifying the first item:
-                    info[mykey_mag] = [{'item': s.series_id,                'acq': acq}]
+                    info[mykey_mag] = [{'item': s.series_id, 'acq': acq}]
+                mykey_pha = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_rec-phase_run-{item:02d}_bold" % task)
+                if (mykey_pha in info):
+                    info[mykey_pha].append({'item': seqinfo[idx + 1].series_id, 'acq': acq})
+                else:
+                    # if it doesn't, add this key, specifying the first item:
                     info[mykey_pha] = [{'item': seqinfo[idx + 1].series_id, 'acq': acq}]
 
             else:
@@ -229,10 +228,9 @@ def infotodict(seqinfo):
 
                 # dictionary key specific for this task type:
                 mykey = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_bold" % task)
-                try:
-                    # check if "info" already has this key by trying to append to it.
+                if (mykey in info):
                     info[mykey].append({'item': s.series_id, 'acq': acq})
-                except KeyError:
+                else:
                     # if it doesn't, add this key, specifying the first item:
                     info[mykey] = [{ 'item': s.series_id, 'acq': acq }]
 
@@ -351,7 +349,7 @@ def infotodict(seqinfo):
                 #        be the previous run (seqinfo[idx - 1].series_description[-4:] == '_SBRef')
                 #        because BIDS doesn't allow them.
 
-                # Get the orientation, for topup:
+                # Get the PE direction, for topup:
                 direction = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='normal' )
 
                 # dictionary key specific for this SE-fmap direction:
