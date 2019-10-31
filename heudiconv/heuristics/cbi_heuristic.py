@@ -164,9 +164,8 @@ def infotodict(seqinfo):
                           and not ('DERIVED' in s.image_type)):
 
             ###   functional -- check PE direction   ###
-            direction = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='normal' )
-            # we will write the 'direction' in under the 'acq-' tag.
-            acq = direction
+            # we will write the 'direction' under the 'acq-' tag.
+            acq = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='normal' )
 
             ###   functional -- check task name   ###
             known_tasks=['rest', 'face', 'conflict', 'gamble', 'fix', 'films', 'inscapes']
@@ -177,20 +176,21 @@ def infotodict(seqinfo):
                     task = ''
 
             # if we don't find a known task, try finding the keyword "task":
-            if ( task == '' ) and ('task' in s.protocol_name.lower()):
-                # we want to capture what comes after "task", until the next
-                #    dash ("-") or underscore ("_"):
-                task = s.protocol_name.lower().split('task')[1]
-                # remove any initial "-" or "_":
-                if ((task[0] == '-') or (task[0] == '_')):
-                    task = task[1:]
-                # discard anything after the next "-" or "_":
-                task = task.split('_')[0]
-                task = task.split('-')[0]
-                # remove any spaces we might have:
-                task = task.replace(" ", "")
-            else:
-                task = 'TASK'    # fallback.  BIDS requires an alphanumeric string (no spaces...)
+            if ( task == '' ):
+                if ('task' in s.protocol_name.lower()):
+                    # we want to capture what comes after "task", until the next
+                    #    dash ("-") or underscore ("_"):
+                    task = s.protocol_name.lower().split('task')[1]
+                    # remove any initial "-" or "_":
+                    if ((task[0] == '-') or (task[0] == '_')):
+                        task = task[1:]
+                    # discard anything after the next "-" or "_":
+                    task = task.split('_')[0]
+                    task = task.split('-')[0]
+                    # remove any spaces we might have:
+                    task = task.replace(" ", "")
+                else:
+                    task = 'TASK'    # fallback.  BIDS requires an alphanumeric string (no spaces...)
 
             # Below, for both magnitude and phase cases, we check if a template is defined
             #    with that specific name. That way we can assure the run number (run-01,
@@ -214,13 +214,13 @@ def infotodict(seqinfo):
                 if (mykey_mag in info):
                     info[mykey_mag].append({'item': s.series_id, 'acq': acq})
                 else:
-                    # if it doesn't, add this key, specifying the first item:
+                    # if it isn't, add this key, specifying the first item:
                     info[mykey_mag] = [{'item': s.series_id, 'acq': acq}]
                 mykey_pha = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_rec-phase_run-{item:02d}_bold" % task)
                 if (mykey_pha in info):
                     info[mykey_pha].append({'item': seqinfo[idx + 1].series_id, 'acq': acq})
                 else:
-                    # if it doesn't, add this key, specifying the first item:
+                    # if it isn't, add this key, specifying the first item:
                     info[mykey_pha] = [{'item': seqinfo[idx + 1].series_id, 'acq': acq}]
 
             else:
@@ -231,7 +231,7 @@ def infotodict(seqinfo):
                 if (mykey in info):
                     info[mykey].append({'item': s.series_id, 'acq': acq})
                 else:
-                    # if it doesn't, add this key, specifying the first item:
+                    # if it isn't, add this key, specifying the first item:
                     info[mykey] = [{ 'item': s.series_id, 'acq': acq }]
 
             ###   SB REF   ###
@@ -240,11 +240,10 @@ def infotodict(seqinfo):
             #  same task name and --if possible-- same run number.
             if (idx > 0) and ('_sbref' in seqinfo[idx - 1].series_description.lower()):
                 mykey_sb = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_sbref" % task)
-                try:
-                    # check if "info" already has this key by trying to append to it.
+                if (mykey_sb in info):
                     info[mykey_sb].append({'item': seqinfo[idx - 1].series_id, 'acq': acq})
-                except KeyError:
-                    # if it doesn't, add this key, specifying the first item:
+                else:
+                    # if it isn't, add this key, specifying the first item:
                     info[mykey_sb] = [{'item': seqinfo[idx - 1].series_id, 'acq': acq}]
 
 
