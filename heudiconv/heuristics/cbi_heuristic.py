@@ -16,6 +16,19 @@ def create_key(template, outtype=('nii.gz','dicom'), annotation_classes=None):
     return (template, outtype, annotation_classes)
 
 
+def find_PE_direction_from_protocol_name( prot_name, default_dir_name='normal' ):
+    PE_directions = ['AP','PA','RL','LR','rev']  # valid phase-encoding directions in the protocol name
+    for direction in PE_directions:
+        if ( ('_{}'.format(direction) in prot_name) or
+             ('-{}'.format(direction) in prot_name) ):
+            break    # we keep the current value of "direction"
+        else:
+            direction = default_dir_name    # fallback
+
+    return direction
+
+
+
 def infotodict(seqinfo):
     """Heuristic evaluator for determining which runs belong where
 
@@ -44,12 +57,8 @@ def infotodict(seqinfo):
     fmap_gre_mag = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-GRE_run-{item:02d}_magnitude')       # GRE fmap
     fmap_gre_phase = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-GRE_run-{item:02d}_phasediff')     #
     # diffusion:
-    fmap_dwi = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-{direction}_run-{item:02d}_epi')
-    fmap_dwi_AP = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-AP_run-{item:02d}_epi')
-    fmap_dwi_AP_sbref = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-AP_run-{item:02d}_sbref')
-    fmap_dwi_PA = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-PA_run-{item:02d}_epi')
-    fmap_dwi_RL = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-RL_run-{item:02d}_epi')
-    fmap_dwi_LR = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-LR_run-{item:02d}_epi')
+    # For the DWI field-map runs (for topup), we want to have a different key for each direction.  Rather than creating the
+    #  different keys here, we'll create them dynamically, as needed.
 
     ###  DICOM only   ###
     # These are images we don't want for analysis, but we still want to keep a copy of
@@ -65,10 +74,7 @@ def infotodict(seqinfo):
     info = {t1:[], t2:[], pd_bias_body:[], pd_bias_receive:[],
             dwi:[], dwi_sbref:[],
             fmap_gre_mag:[], fmap_gre_phase:[],
-            fmap_dwi:[], fmap_dwi_AP:[], fmap_dwi_PA:[], fmap_dwi_RL:[], fmap_dwi_LR:[], fmap_dwi_AP_sbref:[],
             t1_scout:[], t1_dicom: [], t2_dicom: [], phoenix_doc:[]}
-
-    PE_directions = ['AP','PA','RL','LR','rev']  # valid phase-encoding directions in the protocol name
 
     for idx, s in enumerate(seqinfo):
         #pdb.set_trace()
@@ -89,13 +95,7 @@ def infotodict(seqinfo):
                                 ('mpr' in s.protocol_name.lower()) ) and
                               ('fl' in s.sequence_name)):
             # check the PE direction:
-            for direction in PE_directions:
-                if (   ('_{}'.format(direction) in s.protocol_name)
-                    or ('-{}'.format(direction) in s.protocol_name)):
-                        break    # we keep the current value of "direction"
-                else:
-                        direction = ''    # fallback
-
+            direction = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='' )
             acq = 'highres{}'.format(direction)   # note: if direction is empty, aqc='highres'
 
             # If this image is NOT normalized, check if the previous or the following
@@ -115,13 +115,7 @@ def infotodict(seqinfo):
         # single volume, series description includes TSE or FSE, protocol name includes T1, T1w
         if ((s.dim4 == 1) and ('t1' in s.protocol_name.lower()) and ('tse' in s.sequence_name)):
             # check the PE direction:
-            for direction in PE_directions:
-                if (   ('_{}'.format(direction) in s.protocol_name)
-                    or ('-{}'.format(direction) in s.protocol_name)):
-                        break    # we keep the current value of "direction"
-                else:
-                        direction = ''    # fallback
-
+            direction = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='' )
             acq = 'fse{}'.format(direction)   # note: if direction is empty, aqc='fse'
             info[t1].append({'item': s.series_id, 'acq': acq})
 
@@ -133,13 +127,7 @@ def infotodict(seqinfo):
                               ('space' in s.protocol_name.lower()) or
                               ('spc' in s.protocol_name.lower()) ):
             # check the PE direction:
-            for direction in PE_directions:
-                if (   ('_{}'.format(direction) in s.protocol_name)
-                    or ('-{}'.format(direction) in s.protocol_name)):
-                        break    # we keep the current value of "direction"
-                else:
-                        direction = ''    # fallback
-
+            direction = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='' )
             acq = 'highres{}'.format(direction)   # note: if direction is empty, aqc='highres'
 
             # If this image is NOT normalized, check if the previous or the following
@@ -179,12 +167,7 @@ def infotodict(seqinfo):
                           and not ('DERIVED' in s.image_type)):
 
             ###   functional -- check PE direction   ###
-            for direction in PE_directions:
-                if (   ('_{}'.format(direction) in s.protocol_name)
-                    or ('-{}'.format(direction) in s.protocol_name)):
-                        break    # we keep the current value of "direction"
-                else:
-                        direction = 'normal'    # fallback
+            direction = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='normal' )
             # we will write the 'direction' in under the 'acq-' tag.
             acq = direction
 
@@ -282,12 +265,7 @@ def infotodict(seqinfo):
             if (s.series_description[-4:] != '_SBRef'):    # sbref from MB diffusion have epse2d in
                                                            #  sequence_name, so don't include them
                 ###   SE distortion: -- check PE direction   ###
-                for direction in ['AP','PA','RL','LR','rev']:
-                    if (   ('_{}'.format(direction) in s.protocol_name)
-                        or ('-{}'.format(direction) in s.protocol_name)):
-                        break    # we keep the current value of "direction"
-                    else:
-                        direction = 'normal'    # fallback
+                direction = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='normal' )
 
                 # Below, for both magnitude and phase cases, we check if a template is defined
                 #    with that specific direction tag. That way we can assure the run number
@@ -346,12 +324,7 @@ def infotodict(seqinfo):
             elif (s.image_type[2] == 'P'):
                 # phase image:
                 info[fmap_gre_phase].append({'item': s.series_id})
-        # "topup" fmap:
-        #
-        #    dirtype = s.protocol_name.split('_')[-1]
-        #    info[fmap_topup].append({'item': s.series_id, 'dir': dirtype})
-#            acq = s.protocol_name.split('FieldMap_')[1] + 'AP'
-#            info[dwi].append({'item': s.series_id, 'acq': acq})
+
 
         ###   DIFFUSION   ###
 
@@ -378,26 +351,27 @@ def infotodict(seqinfo):
                 #        be the previous run (seqinfo[idx - 1].series_description[-4:] == '_SBRef')
                 #        because BIDS doesn't allow them.
 
-                # see if we can get the orientation, for topup:
-                if (('_AP' in s.protocol_name) or ('-AP' in s.protocol_name)):
-                    info[fmap_dwi_AP].append({'item': s.series_id})
-                    if ( (idx > 0) and
-                            (seqinfo[idx - 1].series_description[-4:] == '_SBRef') ):
-                        info[fmap_dwi_AP_sbref].append({'item': seqinfo[idx - 1].series_id})
-                elif (('_PA' in s.protocol_name) or ('-PA' in s.protocol_name)):
-                    info[fmap_dwi_PA].append({'item': s.series_id})
-                elif (('_RL' in s.protocol_name) or ('-RL' in s.protocol_name)):
-                    info[fmap_dwi_RL].append({'item': s.series_id})
-                elif (('_LR' in s.protocol_name) or ('-LR' in s.protocol_name)):
-                    info[fmap_dwi_LR].append({'item': s.series_id})
-                else:
-                    if ('_rev' in s.protocol_name):
-                        direction = 'rev'
-                    else:
-                        direction = 'normal'
+                # Get the orientation, for topup:
+                direction = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='normal' )
 
-                    info[fmap_dwi].append({'item': s.series_id, 'direction': direction})
+                # dictionary key specific for this SE-fmap direction:
+                mykey = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-%s_run-{item:02d}_epi' % direction)
+                try:
+                    # check if "info" already has this key by trying to append to it.
+                    info[mykey].append({'item': s.series_id})
+                except KeyError:
+                    # if it doesn't, add this key, specifying the first item:
+                    info[mykey] = [{ 'item': s.series_id}]
 
+                if ( (idx > 0) and
+                        (seqinfo[idx - 1].series_description[-4:] == '_SBRef') ):
+                    mykey = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-%s_run-{item:02d}_sbref' % direction)
+                    try:
+                        # check if "info" already has this key by trying to append to it.
+                        info[mykey].append({'item': seqinfo[idx - 1].series_id})
+                    except KeyError:
+                        # if it doesn't, add this key, specifying the first item:
+                        info[mykey] = [{ 'item': seqinfo[idx - 1].series_id}]
 
         ###   PHOENIX FILE   ###
 
