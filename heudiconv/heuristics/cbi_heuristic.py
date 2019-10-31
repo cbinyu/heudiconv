@@ -5,10 +5,10 @@
 
 import os
 
-# TO DO: What do we do about pairs of scans "original" + "normalize" (when normalizing
-#        for the coil sensitivity profile, but also keeping the original?)
-#
-#        Maybe I should use ".lower()" ???
+# Note: When we have pairs of scans "original" + "normalize", we only keep the
+#       normalized image in the BIDS structure.  The DICOMs for the original
+#       images are extracted in the 'sourcedata' folder.
+
 
 def create_key(template, outtype=('nii.gz','dicom'), annotation_classes=None):
     if template is None or not template:
@@ -132,6 +132,7 @@ def infotodict(seqinfo):
         #    look for "AA*Scout" or "AA*scout" in protocol_name:
         if ('scout' in s.protocol_name.lower()) and (s.is_derived == False):
             info[t1_scout].append({'item': s.series_id})
+
         # 2) High resolution T1w:
         # single volume, protocol name including T1, T1w, MPRAGE, MP-RAGE, MPR,...
         if ((s.dim4 == 1) and ( ('t1' in s.protocol_name.lower()) or
@@ -217,14 +218,6 @@ def infotodict(seqinfo):
             # check task name:
             task = extract_task_name( s.protocol_name )
 
-            # Below, for both magnitude and phase cases, we check if a template is defined
-            #    with that specific name. That way we can assure the run number (run-01,
-            #    run-02, ...) only apply for that specific task, not for just any
-            #    task. E.g., if I have two tasks, with two different runs for each
-            #    task name they should be called: task-foo_run-01, task-foo_run-02,
-            #    task-boo_run-01,...    as opposed to task-boo_run-03 because there
-            #    were 2 previous "task" runs.
-
             ###   functional -- is phase image present?   ###
             # At least for Siemens systems, if magnitude/phase was selected, the
             #  phase images come as a separate series immediatelly following the
@@ -250,7 +243,7 @@ def infotodict(seqinfo):
             ###   SB REF   ###
             # here, within the functional run code, check to see if the
             #  previous run protocol name ended in _SBREF, to assign the
-            #  same task name and --if possible-- same run number.
+            #  same task name and run number.
             if (idx > 0) and ('_sbref' in seqinfo[idx - 1].series_description.lower()):
                 mykey_sb = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_sbref" % task)
                 add_series_to_info_dict( seqinfo[idx - 1].series_id, mykey_sb, info, acq )
@@ -258,56 +251,45 @@ def infotodict(seqinfo):
 
         ###   FIELD MAPS   ###
 
-        # A) Spin-Echo distortion maps
-        #    to be used with topup:
+        # A) Spin-Echo distortion maps to be used with topup:
         #    (note: we only look for magnitude images, because we'll catch the phase images below)
         #pdb.set_trace()
         if ((s.dim4 <= 3) and ('epse2d' in s.sequence_name)
                           and ('M' in s.image_type)
                           and (  ('dist'  in s.protocol_name.lower())
                               or ('map'   in s.protocol_name.lower())
-                              or ('field' in s.protocol_name.lower()) )):
+                              or ('field' in s.protocol_name.lower()) )
+                          and (s.series_description[-4:] != '_SBRef')  ):   # sbref from MB diffusion also have epse2d in
+                                                                            #  sequence_name, so don't include them
+            # check PE direction:
+            direction = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='normal' )
 
-            if (s.series_description[-4:] != '_SBRef'):    # sbref from MB diffusion have epse2d in
-                                                           #  sequence_name, so don't include them
-                ###   SE distortion: -- check PE direction   ###
-                direction = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='normal' )
+            # is phase image present?
+            # At least for Siemens systems, if magnitude/phase was selected, the
+            #  phase images come as a separate series immediatelly following the
+            #  magnitude series.
+            # (note: make sure you don't check beyond the number of elements in seqinfo...)
 
-                # Below, for both magnitude and phase cases, we check if a template is defined
-                #    with that specific direction tag. That way we can assure the run number
-                #    (run-01, run-02, ...) only applies for that specific direction tag, not
-                #    for just any fmap. E.g., if I have two fmaps, with opposed directions
-                #    they should be called: dir-AP_run-01 and dir-PA_run-01, as opposed to
-                #    dir-AP_run-01 and dir-PA_run-02.  So each direction tag should be assigned
-                #    to its own template.
+            if (idx+1 < len(seqinfo)) and ('P' in seqinfo[idx+1].image_type):
+                # we have a magnitude/phase pair:
 
-                ###   SE-fmap -- is phase image present?   ###
-                # At least for Siemens systems, if magnitude/phase was selected, the
-                #  phase images come as a separate series immediatelly following the
-                #  magnitude series.
-                # (note: make sure you don't check beyond the number of elements in seqinfo...)
+                # dictionary keys specific for this SE-fmap direction:
+                mykey_mag = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_rec-magnitude_dir-%s_run-{item:02d}_epi' % direction)
+                mykey_pha = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_rec-phase_dir-%s_run-{item:02d}_epi' % direction)
+                add_series_to_info_dict( s.series_id, mykey_mag, info )
+                add_series_to_info_dict( seqinfo[idx + 1].series_id, mykey_pha, info )
 
-                if (idx+1 < len(seqinfo)) and ('P' in seqinfo[idx+1].image_type):
-                    # we have a magnitude/phase pair:
+            else:
+                # we only have a magnitude image
 
-                    # dictionary keys specific for this SE-fmap direction:
-                    mykey_mag = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_rec-magnitude_dir-%s_run-{item:02d}_epi' % direction)
-                    mykey_pha = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_rec-phase_dir-%s_run-{item:02d}_epi' % direction)
-                    add_series_to_info_dict( s.series_id, mykey_mag, info )
-                    add_series_to_info_dict( seqinfo[idx + 1].series_id, mykey_pha, info )
-
-                else:
-                    # we only have a magnitude image
-
-                    # dictionary key specific for this SE-fmap direction:
-                    mykey = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_dir-%s_run-{item:02d}_epi' % direction)
-                    add_series_to_info_dict( s.series_id, mykey, info )
-
+                # dictionary key specific for this SE-fmap direction:
+                mykey = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_dir-%s_run-{item:02d}_epi' % direction)
+                add_series_to_info_dict( s.series_id, mykey, info )
 
 
         # B) GRE fmap:
         if ('fm2d' in s.sequence_name) and (('fieldmap' in s.protocol_name.lower()) or
-                                                ('field_map' in s.protocol_name.lower())):
+                                            ('field_map' in s.protocol_name.lower())):
 #            pdb.set_trace()
             if (s.image_type[2] == 'M'):
                 # magnitude image
@@ -337,14 +319,10 @@ def infotodict(seqinfo):
                 if ( (idx > 0) and
                          (seqinfo[idx - 1].series_description[-4:] == '_SBRef') and
                          ('epse2d' in seqinfo[idx - 1].sequence_name) ):
-                    info[dwi_sbref].append({'item': s.series_id, 'acq': acq})
+                    info[dwi_sbref].append({'item': seqinfo[idx - 1].series_id, 'acq': acq})
 
             else:
                 # this is a fmap for diffusion.
-
-                # TO-DO: for now, just ignore the _sbref image (if present, it would
-                #        be the previous run (seqinfo[idx - 1].series_description[-4:] == '_SBRef')
-                #        because BIDS doesn't allow them.
 
                 # Get the PE direction, for topup:
                 direction = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='normal' )
