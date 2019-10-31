@@ -61,7 +61,7 @@ def extract_task_name( prot_name ):
 
 def add_series_to_info_dict( series_id, mykey, info, acq='' ):
     # adds a series to the 'info' dictionary.
-    if ( info = None ) or ( mykey = '' ): return error
+    if ( info == None ) or ( mykey == '' ): return error
 
     if (mykey in info):
         if ( acq == '' ):
@@ -259,7 +259,7 @@ def infotodict(seqinfo):
                           and (  ('dist'  in s.protocol_name.lower())
                               or ('map'   in s.protocol_name.lower())
                               or ('field' in s.protocol_name.lower()) )
-                          and (s.series_description[-4:] != '_SBRef')  ):   # sbref from MB diffusion also have epse2d in
+                          and (s.series_description[-6:] != '_SBRef')  ):   # sbref from MB diffusion also have epse2d in
                                                                             #  sequence_name, so don't include them
             # check PE direction:
             direction = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='normal' )
@@ -317,7 +317,7 @@ def infotodict(seqinfo):
 
                 # check to see if the previous run is a SBREF:
                 if ( (idx > 0) and
-                         (seqinfo[idx - 1].series_description[-4:] == '_SBRef') and
+                         (seqinfo[idx - 1].series_description[-6:] == '_SBRef') and
                          ('epse2d' in seqinfo[idx - 1].sequence_name) ):
                     info[dwi_sbref].append({'item': seqinfo[idx - 1].series_id, 'acq': acq})
 
@@ -332,8 +332,9 @@ def infotodict(seqinfo):
                 add_series_to_info_dict( s.series_id, mykey, info )
 
                 if ( (idx > 0) and
-                        (seqinfo[idx - 1].series_description[-4:] == '_SBRef') ):
-                    mykey = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-%s_run-{item:02d}_sbref' % direction)
+                        (seqinfo[idx - 1].series_description[-6:] == '_SBRef') ):
+                    # TO-DO: for now, extract the _sbref dwi fmap image as DICOMs, because BIDS doesn't allow them.
+                    mykey = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-%s_run-{item:02d}_sbref' % direction, outtype = ('dicom',))
                     add_series_to_info_dict( seqinfo[idx - 1].series_id, mykey, info )
 
         ###   PHOENIX FILE   ###
