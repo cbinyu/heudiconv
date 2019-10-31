@@ -28,7 +28,37 @@ def find_PE_direction_from_protocol_name( prot_name, default_dir_name='normal' )
     return direction
 
 
+def extract_task_name( prot_name ):
+    # extracts task name from the protocol_name:
 
+    prot_name = prot_name.lower()
+    known_tasks=['rest', 'face', 'conflict', 'gamble', 'fix', 'films', 'inscapes']
+    for task_name in known_tasks:
+        if (task_name in prot_name):
+            break    # we keep the current value for "task"
+        else:
+            task_name = ''
+
+    # if we don't find a known task, try finding the keyword "task":
+    if ( task_name == '' ):
+        if ('task' in prot_name):
+            # we want to capture what comes after "task", until the next
+            #    dash ("-") or underscore ("_"):
+            task_name = prot_name.split('task')[1]
+            # remove any initial "-" or "_":
+            if ((task_name[0] == '-') or (task_name[0] == '_')):
+                task_name = task_name[1:]
+            # discard anything after the next "-" or "_":
+            task_name = task_name.split('_')[0]
+            task_name = task_name.split('-')[0]
+            # remove any spaces we might have:
+            task_name = task_name.replace(" ", "")
+        else:
+            task_name = 'TASK'    # fallback.  BIDS requires an alphanumeric string (no spaces...)
+
+    return task_name
+
+    
 def infotodict(seqinfo):
     """Heuristic evaluator for determining which runs belong where
 
@@ -163,34 +193,12 @@ def infotodict(seqinfo):
                           and (s.series_description[-6:].lower() != '_sbref')
                           and not ('DERIVED' in s.image_type)):
 
-            ###   functional -- check PE direction   ###
-            # we will write the 'direction' under the 'acq-' tag.
+            # check PE direction:
+            # we will write the direction under the 'acq-' tag.
             acq = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='normal' )
 
-            ###   functional -- check task name   ###
-            known_tasks=['rest', 'face', 'conflict', 'gamble', 'fix', 'films', 'inscapes']
-            for task in known_tasks:
-                if (task in s.protocol_name.lower()):
-                    break    # we keep the current value for "task"
-                else:
-                    task = ''
-
-            # if we don't find a known task, try finding the keyword "task":
-            if ( task == '' ):
-                if ('task' in s.protocol_name.lower()):
-                    # we want to capture what comes after "task", until the next
-                    #    dash ("-") or underscore ("_"):
-                    task = s.protocol_name.lower().split('task')[1]
-                    # remove any initial "-" or "_":
-                    if ((task[0] == '-') or (task[0] == '_')):
-                        task = task[1:]
-                    # discard anything after the next "-" or "_":
-                    task = task.split('_')[0]
-                    task = task.split('-')[0]
-                    # remove any spaces we might have:
-                    task = task.replace(" ", "")
-                else:
-                    task = 'TASK'    # fallback.  BIDS requires an alphanumeric string (no spaces...)
+            # check task name:
+            task = extract_task_name( s.protocol_name )
 
             # Below, for both magnitude and phase cases, we check if a template is defined
             #    with that specific name. That way we can assure the run number (run-01,
