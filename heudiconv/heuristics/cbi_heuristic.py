@@ -228,8 +228,8 @@ def infotodict(seqinfo):
                 # we have a magnitude/phase pair:
 
                 # dictionary keys specific for this task type:
-                mykey_mag = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_rec-magnitude_run-{item:02d}_bold" % task)
-                mykey_pha = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_rec-phase_run-{item:02d}_bold" % task)
+                mykey_mag = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_bold" % task)
+                mykey_pha = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_phase" % task)
                 add_series_to_info_dict( s.series_id, mykey_mag, info, acq )
                 add_series_to_info_dict( seqinfo[idx + 1].series_id, mykey_pha, info, acq )
 
