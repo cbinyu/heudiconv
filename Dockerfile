@@ -2,8 +2,12 @@
 # We'll compile all needed packages in the builder, and then
 # we'll just get only what we need for the actual APP
 
+ARG DEBIAN_VERSION=buster
+ARG BASE_PYTHON_VERSION=3.7
+# (don't use simply PYTHON_VERSION bc. it's an env variable)
+
 # Use an official Python runtime as a parent image
-FROM python:3.7-slim as builder
+FROM python:${BASE_PYTHON_VERSION}-slim-${DEBIAN_VERSION} as builder
 
 ## install the gcc compiler
 #  (needed to install some of the python packages):
@@ -70,7 +74,7 @@ RUN rm -fr /usr/local/lib/python3.7/site-packages/nibabel/nicom/tests && \
 
 ###  Now, get a new machine with only the essentials  ###
 
-FROM python:3.7-slim as Application
+FROM python:${BASE_PYTHON_VERSION}-slim-${DEBIAN_VERSION} as Application
 
 COPY --from=builder ./usr/local/lib/python3.7/ /usr/local/lib/python3.7/
 COPY --from=builder ./usr/local/bin/           /usr/local/bin/
