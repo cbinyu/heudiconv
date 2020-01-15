@@ -552,33 +552,42 @@ def save_converted_files(res, item_dicoms, bids_options, outtype, prefix, outnam
             # two NIfTI files IN THE SAME SERIES, so we cannot just add
             # the suffix, if we want to be bids compliant. In general, look
             # for len(suffixes)>len(echo_times):
-            if bids_file and len(suffixes)>len(echo_times):
-                # Check to see if it is magnitude or phase reconstruction:
-                if 'M' in fileinfo.get('ImageType'):
-                    mag_or_phase = 'magnitude'
-                elif 'P' in fileinfo.get('ImageType'):
-                    mag_or_phase = 'phase'
-                else:
-                    mag_or_phase = suffix
+            if bids_file:
+                # for SBRef files don't save the phase image (if present)
+                if this_prefix_basename.endswith('_sbref'):    # <- don't put these two "if" staments together because
+                    if 'P' in fileinfo.get('ImageType'):       # <-   we want the next "elif" skipped for all _sbref images
+                        # phase image; do nothing (go to the next bids_file)
+                        continue
+                    # otherwise, it's a _sbref magnitude image; nothing to be changed in this_prefix_basename
 
-                # Insert reconstruction label
-                if not ("_rec-%s" % mag_or_phase) in this_prefix_basename:
-
-                    # If "_rec-" is specified, prepend the 'mag_or_phase' value.
-                    if ('_rec-' in this_prefix_basename):
-                        this_prefix_basename = this_prefix_basename.replace(
-                            '_rec-', "_rec-%s-" % (mag_or_phase), 1
-                        )
-
-                    # If not, insert "_rec-" + 'mag_or_phase' into the prefix_basename
-                    #   **before** "_run", "_echo" or "_sbref", whichever appears first:
+                # for other cases (not SBRef), we might want to save "_rec-magnitude" or "_rec-phase"
+                elif len(suffixes)>len(echo_times):
+                    # Check to see if it is magnitude or phase reconstruction:
+                    if 'M' in fileinfo.get('ImageType'):
+                        mag_or_phase = 'magnitude'
+                    elif 'P' in fileinfo.get('ImageType'):
+                        mag_or_phase = 'phase'
                     else:
-                        for label in ['_run', '_echo', '_sbref']:
-                            if (label in this_prefix_basename):
-                                this_prefix_basename = this_prefix_basename.replace(
-                                    label, "_rec-%s%s" % (mag_or_phase, label), 1
-                                )
-                                break
+                        mag_or_phase = suffix
+
+                    # Insert reconstruction label
+                    if not ("_rec-%s" % mag_or_phase) in this_prefix_basename:
+
+                        # If "_rec-" is specified, prepend the 'mag_or_phase' value.
+                        if ('_rec-' in this_prefix_basename):
+                            this_prefix_basename = this_prefix_basename.replace(
+                                '_rec-', "_rec-%s-" % (mag_or_phase), 1
+                            )
+
+                        # If not, insert "_rec-" + 'mag_or_phase' into the prefix_basename
+                        #   **before** "_run", "_echo" or "_sbref", whichever appears first:
+                        else:
+                            for label in ['_run', '_echo', '_sbref']:
+                                if (label in this_prefix_basename):
+                                    this_prefix_basename = this_prefix_basename.replace(
+                                        label, "_rec-%s%s" % (mag_or_phase, label), 1
+                                    )
+                                    break
 
             # Now check if this run is multi-echo
             # (Note: it can be _sbref and multiecho, so don't use "elif"):
@@ -612,8 +621,12 @@ def save_converted_files(res, item_dicoms, bids_options, outtype, prefix, outnam
 
             # Fallback option:
             # If we have failed to modify this_prefix_basename, because it didn't fall
-            #   into any of the options above, just add the suffix at the end:
-            if this_prefix_basename == prefix_basename:
+            #   into any of the options above (except for _sbref magnitude files), just
+            #   add the suffix at the end:
+            if (
+                this_prefix_basename == prefix_basename
+                and not this_prefix_basename.endswith('_sbref')
+            ):
                 this_prefix_basename += suffix
 
             # Finally, form the outname by stitching the directory and outtype:
