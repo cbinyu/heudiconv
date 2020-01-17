@@ -1,7 +1,7 @@
-__version__ = "0.6.0"
+__version__ = "3.0.1"
 __author__ = "HeuDiConv team and contributors"
-__url__ = "https://github.com/nipy/heudiconv"
-__packagename__ = 'heudiconv'
+__url__ = "https://github.com/cbinyu/heudiconv"
+__packagename__ = 'cbi_heudiconv'
 __description__ = "Heuristic DICOM Converter"
 __license__ = "Apache 2.0"
 __longdesc__ = """Convert DICOM dirs based on heuristic info - HeuDiConv
