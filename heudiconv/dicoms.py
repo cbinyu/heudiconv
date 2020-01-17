@@ -23,21 +23,20 @@ def group_dicoms_into_seqinfos(files, file_filter, dcmfilter, grouping):
       kept, False otherwise.
     dcmfilter : callable, optional
       If called on dcm_data and returns True, it is used to set series_id
-    grouping : {'studyUID', 'accession_number', None}, optional
-        what to group by: studyUID or accession_number
+    grouping : {'studyUID', 'accession_number', 'all'}, optional
+        what to group by: studyUID, accession_number or just all files
     Returns
     -------
-    seqinfo : list of list
-      `seqinfo` is a list of info entries per each sequence (some entry
-      there defines a key for `filegrp`)
+    OrderedDict{study(group): OrderedDict{SeqInfo: filegrp}}
     filegrp : dict
       `filegrp` is a dictionary with files groupped per each sequence
     """
-    allowed_groupings = ['studyUID', 'accession_number', None]
+    allowed_groupings = ['studyUID', 'accession_number', 'all']
     if grouping not in allowed_groupings:
         raise ValueError('I do not know how to group by {0}'.format(grouping))
     per_studyUID = grouping == 'studyUID'
     per_accession_number = grouping == 'accession_number'
+    lgr.info("GROUPING: %s"% grouping)
     lgr.info("Analyzing %d dicoms", len(files))
 
     groups = [[], []]
@@ -90,6 +89,8 @@ def group_dicoms_into_seqinfos(files, file_filter, dcmfilter, grouping):
                 # verify that we are working with a single study
                 if studyUID is None:
                     studyUID = file_studyUID
+                elif grouping ==  'all':
+                    pass # multiple uids will be treated as a single session
                 elif not per_accession_number:
                     assert studyUID == file_studyUID, (
                     "Conflicting study identifiers found [{}, {}].".format(
@@ -136,14 +137,14 @@ def group_dicoms_into_seqinfos(files, file_filter, dcmfilter, grouping):
             groups[0].append(series_id)
             groups[1].append(len(mwgroup) - 1)
 
-    group_map = dict(zip(groups[0], groups[1]))
+    group_map = OrderedDict(zip(groups[0], groups[1]))
 
     total = 0
     seqinfo = OrderedDict()
 
     # for the next line to make any sense the series_id needs to
     # be sortable in a way that preserves the series order
-    for series_id, mwidx in sorted(group_map.items()):
+    for series_id, mwidx in group_map.items():
         if series_id[0] < 0:
             # skip our fake series with unwanted files
             continue
@@ -225,44 +226,56 @@ def group_dicoms_into_seqinfos(files, file_filter, dcmfilter, grouping):
         else:
             sequence_name = 'Not found'
 
-        info = SeqInfo(
-            total,
-            op.split(series_files[0])[1],
-            series_id,
-            op.basename(op.dirname(series_files[0])),
-            '-', '-',
-            size[0], size[1], size[2], size[3],
-            TR, TE,
-            dcminfo.ProtocolName,
-            motion_corrected,
-            'derived' in [x.lower() for x in dcminfo.get('ImageType', [])],
-            dcminfo.get('PatientID'),
-            dcminfo.get('StudyDescription'),
-            refphys,
-            series_desc,  # We try to set this further up.
-            sequence_name,
-            image_type,
-            accession_number,
-            # For demographics to populate BIDS participants.tsv
-            dcminfo.get('PatientAge'),
-            dcminfo.get('PatientSex'),
-            dcminfo.get('AcquisitionDate'),
-            dcminfo.get('AcquisitionTime'),
-            dcminfo.get('SeriesInstanceUID')
-        )
+        try:
+            seqinfo_args = (
+                total,
+                op.split(series_files[0])[1],
+                series_id,
+                op.basename(op.dirname(series_files[0])),
+                '-', '-',
+                size[0], size[1], size[2], size[3],
+                TR, TE,
+                dcminfo.ProtocolName,
+                motion_corrected,
+                'derived' in [x.lower() for x in dcminfo.get('ImageType', [])],
+                dcminfo.get('PatientID'),
+                dcminfo.get('StudyDescription'),
+                refphys,
+                series_desc,  # We try to set this further up.
+                sequence_name,
+                image_type,
+                accession_number,
+                # For demographics to populate BIDS participants.tsv
+                dcminfo.get('PatientAge'),
+                dcminfo.get('PatientSex'),
+                dcminfo.get('AcquisitionDate'),
+                dcminfo.get('AcquisitionTime'),
+                dcminfo.get('SeriesInstanceUID')
+            )
+            info = SeqInfo(*seqinfo_args)
+
+        except TypeError as e:
+            print("Trying to construct Seqinfo object:",
+                  "{ob}".format(ob=SeqInfo.__doc__),
+                  "\n However the arguments supplied were:")
+            print(seqinfo_args)
+            raise(e)
+
         # candidates
         # dcminfo.AccessionNumber
         #   len(dcminfo.ReferencedImageSequence)
         #   len(dcminfo.SourceImageSequence)
         # FOR demographics
         if per_studyUID:
-            key = studyUID.split('.')[-1]
+            key = studyUID
+            key_lgr = studyUID.split('.')[-1]
         elif per_accession_number:
-            key = accession_number
+            key_lgr = key = accession_number
         else:
-            key = ''
+            key_lgr = key = None
+
         lgr.debug("%30s %30s %27s %27s %5s nref=%-2d nsrc=%-2d %s" % (
-            key,
+            key_lgr,
             info.series_id,
             series_desc,
             dcminfo.ProtocolName,
@@ -271,25 +284,21 @@ def group_dicoms_into_seqinfos(files, file_filter, dcmfilter, grouping):
             len(dcminfo.get('SourceImageSequence', '')),
             info.image_type
         ))
-        if per_studyUID:
-            if studyUID not in seqinfo:
-                seqinfo[studyUID] = OrderedDict()
-            seqinfo[studyUID][info] = series_files
-        elif per_accession_number:
-            if accession_number not in seqinfo:
-                seqinfo[accession_number] = OrderedDict()
-            seqinfo[accession_number][info] = series_files
-        else:
-            seqinfo[info] = series_files
 
-    if per_studyUID:
-        lgr.info("Generated sequence info for %d studies with %d entries total",
-                 len(seqinfo), sum(map(len, seqinfo.values())))
-    elif per_accession_number:
-        lgr.info("Generated sequence info for %d accession numbers with %d "
-                 "entries total", len(seqinfo), sum(map(len, seqinfo.values())))
-    else:
-        lgr.info("Generated sequence info with %d entries", len(seqinfo))
+        if key not in seqinfo:
+            seqinfo[key] = OrderedDict()
+        if info in seqinfo[key]:
+            raise ValueError(
+                "Already got info: %s" % str(info)
+            )
+        seqinfo[key][info] = series_files
+
+    lgr.info(
+        "Groupping by %s, generated sequence info for %d studies, %d entries total",
+         grouping or "nothing",
+        len(seqinfo),
+        sum(map(len, seqinfo.values()))
+    )
     return seqinfo
 
 

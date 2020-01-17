@@ -5,6 +5,7 @@ import logging
 import shutil
 import sys
 
+from collections import OrderedDict
 from .utils import (
     read_config,
     load_json,
@@ -17,7 +18,8 @@ from .utils import (
     clear_temp_dicoms,
     seqinfo_fields,
     assure_no_file_exists,
-    file_md5sum
+    file_md5sum,
+    SeqInfo
 )
 from .bids import (
     convert_sid_bids,
@@ -80,9 +82,15 @@ def conversion_info(subject, outdir, info, filegroup, ses):
     return convert_info
 
 
+def flatten(items):
+    # import operator
+    # no reduce in PY3
+    return sum(items, [])
+
+
 def prep_conversion(sid, dicoms, outdir, heuristic, converter, anon_sid,
                    anon_outdir, with_prov, ses, bids_options, seqinfo, min_meta,
-                   overwrite, dcmconfig):
+                   overwrite, grouping, dcmconfig):
     if dicoms:
         lgr.info("Processing %d dicoms", len(dicoms))
     elif seqinfo:
@@ -167,7 +175,30 @@ def prep_conversion(sid, dicoms, outdir, heuristic, converter, anon_sid,
                 dicoms,
                 file_filter=getattr(heuristic, 'filter_files', None),
                 dcmfilter=getattr(heuristic, 'filter_dicom', None),
-                grouping=None)
+                grouping=grouping)
+        else:
+            # we got seqinfo passed from elsewhere:
+            if isinstance(list(seqinfo.keys())[0],SeqInfo):
+                seqinfo = {'no_grouping' : seqinfo}
+
+        assert(not isinstance(list(seqinfo.keys())[0],SeqInfo))
+        ## At this point 'seqinfo' is a dict containing dicts in 
+        ## which the values are SeqInfo objects.
+        ## If we were to always output seqinfo I think we have
+        ## the issue that series_ids can't match
+        ## also appears to be not what reproin seems to be using.
+        series_ids = flatten(map( lambda x: [seq.series_id for seq in x.keys()], seqinfo.values()))
+
+        filegroup = {si.series_id: x for seqinfo_tmp in seqinfo.values() for si, x in seqinfo_tmp.items() }
+
+        ## For now, the code works with a dict containing with SeqInfo
+        ## objects as keys so we'll make that
+        ## from the current seqinfo.
+        seqinfo_dict  = OrderedDict()
+        for seqinfo_tmp in seqinfo.values():
+            seqinfo_dict.update(seqinfo_tmp)
+        seqinfo = seqinfo_dict
+
         seqinfo_list = list(seqinfo.keys())
         filegroup = {si.series_id: x for si, x in seqinfo.items()}
         dicominfo_file = op.join(idir, 'dicominfo%s.tsv' % ses_suffix)
@@ -432,13 +463,15 @@ def nipype_convert(item_dicoms, prefix, with_prov, bids_options, tmpdir, dcmconf
 
     item_dicoms = list(map(op.abspath, item_dicoms)) # absolute paths
 
+    dicom_dir = op.dirname(item_dicoms[0]) if item_dicoms else None
+
     fromfile = dcmconfig if dcmconfig else None
     if fromfile:
         lgr.info("Using custom config file %s", fromfile)
 
     convertnode = Node(Dcm2niix(from_file=fromfile), name='convert')
     convertnode.base_dir = tmpdir
-    convertnode.inputs.source_names = item_dicoms
+    convertnode.inputs.source_dir = dicom_dir
     convertnode.inputs.out_filename = prefix
 
     if nipype.__version__.split('.')[0] == '0':

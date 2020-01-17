@@ -4,7 +4,8 @@ import os.path as op
 from glob import glob
 import re
 
-from collections import defaultdict
+import bisect
+from collections import defaultdict, OrderedDict
 
 import tarfile
 from tempfile import mkdtemp
@@ -90,7 +91,9 @@ def get_extracted_dicoms(fl):
         tf_content = [m.name for m in tmembers if m.isfile()]
         # store full paths to each file, so we don't need to drag along
         # tmpdir as some basedir
-        sessions[session] = [op.join(tmpdir, f) for f in tf_content]
+        sessions[session] = []
+        for f in tf_content:
+            bisect.insort(sessions[session],op.join(tmpdir, f))
         session += 1
         # extract into tmp dir
         tf.extractall(path=tmpdir, members=tmembers)
@@ -105,7 +108,7 @@ def get_extracted_dicoms(fl):
 
 
 def get_study_sessions(dicom_dir_template, files_opt, heuristic, outdir,
-                       session, sids, grouping='studyUID'):
+                       session, sids, grouping):
     """Given options from cmdline sort files or dicom seqinfos into
     study_sessions which put together files for a single session of a subject
     in a study
