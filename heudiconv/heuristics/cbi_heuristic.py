@@ -202,7 +202,7 @@ def infotodict(seqinfo):
                 info[pd_bias_receive].append({'item': s.series_id})
 
         ###   FUNCTIONAL   ###
-        # We want to make sure the _SBRef and phase series (if present) are labeled
+        # We want to make sure the _SBRef, PhysioLog and phase series (if present) are labeled
         #  the same as the main (magnitude) image.  So we only focus on the magnitude
         #  series (to exclude phase images) and more than 3 volumes (to exclude _SBRef)
         #  and then we search if the phase and/or _SBRef are present.
@@ -233,6 +233,8 @@ def infotodict(seqinfo):
                 add_series_to_info_dict( s.series_id, mykey_mag, info, acq )
                 add_series_to_info_dict( seqinfo[idx + 1].series_id, mykey_pha, info, acq )
 
+                next_series = idx+2
+
             else:
                 # we only have a magnitude image
 
@@ -240,13 +242,23 @@ def infotodict(seqinfo):
                 mykey = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_bold" % task)
                 add_series_to_info_dict( s.series_id, mykey, info, acq )
 
+                next_series = idx+1
+
             ###   SB REF   ###
             # here, within the functional run code, check to see if the
             #  previous run protocol name ended in _SBREF, to assign the
             #  same task name and run number.
-            if (idx > 0) and ('_sbref' in seqinfo[idx - 1].series_description.lower()):
+            if (idx > 0) and (seqinfo[idx - 1].series_description.lower().endswith('_sbref')):
                 mykey_sb = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_sbref" % task)
                 add_series_to_info_dict( seqinfo[idx - 1].series_id, mykey_sb, info, acq )
+
+            ###   PHYSIO LOG   ###
+            # here, within the functional run code, check to see if the
+            #  next run image_type lists "PHYSIO", to assign the
+            #  same task name and run number.
+            if (next_series < len(seqinfo)) and ('PHYSIO' in seqinfo[next_series].image_type):
+                mykey_physio = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_physio" % task, outtype = ('dicom',))
+                add_series_to_info_dict( seqinfo[next_series].series_id, mykey_physio, info, acq )
 
 
         ###   FIELD MAPS   ###
