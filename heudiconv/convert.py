@@ -354,9 +354,8 @@ def convert(items, converter, scaninfo_suffix, custom_callable, with_prov,
                     )
 
                 if len(bids_outfiles) > 1:
-                    lgr.warning("For now not embedding BIDS and info generated "
-                                ".nii.gz itself since sequence produced "
-                                "multiple files")
+                    lgr.warning("Sequence produced multiple image files. "
+                                "Embedding info into the individual json files ")
                     for bids_outfile in bids_outfiles:
                         this_outname = op.splitext(bids_outfile)[0] + '.' + outtype
                         embed_metadata_from_dicoms(bids_options, item_dicoms, this_outname, bids_outfile,
