@@ -28,7 +28,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
   && apt-get clean -y && apt-get autoclean -y && apt-get autoremove -y
 
 # Install dcmstack from github (using git):
-ENV DCMSTACK_VERSION=v0.7
+#ENV DCMSTACK_VERSION=v0.7
+ENV DCMSTACK_VERSION=fa24702f09cff111a76297e9f01240d06b4cd1a2
 RUN mkdir /tmp/dcmstack && \
     curl -sSL https://github.com/moloney/dcmstack/archive/${DCMSTACK_VERSION}.tar.gz \
         | tar -vxz -C /tmp/dcmstack --strip-components=1 && \
