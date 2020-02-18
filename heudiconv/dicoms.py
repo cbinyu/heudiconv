@@ -549,10 +549,14 @@ def parse_private_csa_header(dcm_data, public_attr, private_attr, default=None):
     from nibabel.nicom import csareader
     import dcmstack.extract as dsextract
     try:
-        # TODO: test with attr besides ProtocolName
-        csastr = csareader.get_csa_header(dcm_data, 'series')['tags']['MrPhoenixProtocol']['items'][0]
+        # TODO: test with attr besides ProtocolName:
+        for protocolStr in ['MrPhoenixProtocol','MrProtocol']:
+            if protocolStr in csareader.get_csa_header(dcm_data, 'series')['tags']:
+                break
+        csastr = csareader.get_csa_header(dcm_data, 'series')['tags'][protocolStr]['items'][0]
         csastr = csastr.replace("### ASCCONV BEGIN", "### ASCCONV BEGIN ### ")
-        parsedhdr = dsextract.parse_phoenix_prot('MrPhoenixProtocol', csastr)
+        parsedhdr = dsextract.parse_phoenix_prot(protocolStr, csastr)
+
         val = parsedhdr[private_attr]
         # if val is a string, it will remove spaces.
         val = val.replace(' ', '')
