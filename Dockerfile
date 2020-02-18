@@ -55,9 +55,11 @@ RUN mkdir /tmp/dcm2bidsphysio && \
     rm -rf /tmp/dcm2bidsphysio
 
 # Install heudiconv from github:
-RUN cd /tmp && \
-    git clone https://github.com/cbinyu/heudiconv.git && \
-    cd heudiconv && \
+ENV CBIHEUDICONV_VERSION=v3.2
+RUN mkdir /tmp/heudiconv && \
+    curl -sSL https://github.com/cbinyu/heudiconv/archive/${CBIHEUDICONV_VERSION}.tar.gz \
+        | tar -vxz -C /tmp/heudiconv --strip-components=1 && \
+    cd /tmp/heudiconv && \
     pip install . && \
     cd / && rm -rf /tmp/heudiconv
 #COPY [".", "/tmp/heudiconv"]
