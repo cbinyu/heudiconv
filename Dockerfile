@@ -66,10 +66,11 @@ RUN cd /tmp && \
 
 # Get rid of some test folders in some of the Python packages:
 # (They are not needed for our APP):
-#RUN rm -fr /usr/local/lib/python3.7/site-packages/numpy
-RUN rm -fr /usr/local/lib/python3.7/site-packages/nibabel/nicom/tests && \
-    rm -fr /usr/local/lib/python3.7/site-packages/nibabel/tests       && \
-    rm -fr /usr/local/lib/python3.7/site-packages/nibabel/gifti/tests
+ENV PYTHON_LIB_PATH=/usr/local/lib/python${BASE_PYTHON_VERSION}
+#RUN rm -fr ${PYTHON_LIB_PATH}/site-packages/numpy
+RUN rm -fr ${PYTHON_LIB_PATH}/site-packages/nibabel/nicom/tests && \
+    rm -fr ${PYTHON_LIB_PATH}/site-packages/nibabel/tests       && \
+    rm -fr ${PYTHON_LIB_PATH}/site-packages/nibabel/gifti/tests
 
 #############
 
@@ -77,10 +78,12 @@ RUN rm -fr /usr/local/lib/python3.7/site-packages/nibabel/nicom/tests && \
 
 FROM python:${BASE_PYTHON_VERSION}-slim-${DEBIAN_VERSION} as Application
 
-COPY --from=builder ./usr/local/lib/python3.7/ /usr/local/lib/python3.7/
+# This makes the BASE_PYTHON_VERSION available inside this stage
+ARG BASE_PYTHON_VERSION
+ENV PYTHON_LIB_PATH=/usr/local/lib/python${BASE_PYTHON_VERSION}
+
+COPY --from=builder ./${PYTHON_LIB_PATH}/       ${PYTHON_LIB_PATH}/
 COPY --from=builder ./usr/local/bin/           /usr/local/bin/
 COPY --from=builder ./usr/bin/pigz             /usr/bin/
 
-# Run app.py when the container launches:
-#ADD . /app
 ENTRYPOINT ["/usr/local/bin/heudiconv"]
