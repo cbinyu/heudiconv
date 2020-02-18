@@ -257,7 +257,7 @@ def infotodict(seqinfo):
             #  next run image_type lists "PHYSIO", to assign the
             #  same task name and run number.
             if (next_series < len(seqinfo)) and ('PHYSIO' in seqinfo[next_series].image_type):
-                mykey_physio = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_physio" % task, outtype = ('dicom',))
+                mykey_physio = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_physio" % task, outtype = ('dicom','physio'))
                 add_series_to_info_dict( seqinfo[next_series].series_id, mykey_physio, info, acq )
 
 

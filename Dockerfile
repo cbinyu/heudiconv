@@ -45,6 +45,15 @@ RUN apt-get update && apt-get upgrade -y && \
     make && make install && \
     cd / && rm -rf /tmp/dcm2niix
 
+# Install dcm2bidsphysio from github:
+RUN mkdir /tmp/dcm2bidsphysio && \
+    curl -sSL https://github.com/cbinyu/dcm2bidsphysio/archive/master.tar.gz \
+        | tar -vxz -C /tmp/dcm2bidsphysio --strip-components=1 && \
+    cd /tmp/dcm2bidsphysio && \
+    pip install . && \
+    cd / && \
+    rm -rf /tmp/dcm2bidsphysio
+
 # Install heudiconv from github:
 RUN cd /tmp && \
     git clone https://github.com/cbinyu/heudiconv.git && \
