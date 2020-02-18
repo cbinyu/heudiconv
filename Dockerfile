@@ -39,7 +39,7 @@ RUN mkdir /tmp/dcmstack && \
 
 # Install dcm2niix from github:
 # Install also pigz-- it makes dcm2niix compress NIfTI files faster
-ENV DCM2NIIX_VERSION=v1.0.20190410
+ENV DCM2NIIX_VERSION=v1.0.20190902
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y pigz && \
     apt-get clean -y && apt-get autoclean -y && apt-get autoremove -y && \
