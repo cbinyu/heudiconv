@@ -4,7 +4,7 @@
 
 ARG DEBIAN_VERSION=buster
 ARG BASE_PYTHON_VERSION=3.7
-# (don't use simply PYTHON_VERSION bc. it's an env variable)
+# (don't use simply PYTHON_VERSION because it's an env variable)
 
 # Use an official Python runtime as a parent image
 FROM python:${BASE_PYTHON_VERSION}-slim-${DEBIAN_VERSION} as builder
@@ -16,18 +16,11 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     pkg-config \
     make \
     cmake \
-    # also install git, needed to build dcm2niix:
-    git-core \
-  && apt-get clean -y && apt-get autoclean -y && apt-get autoremove -y
-
-## For now, install 'emacs', to be able to edit packages
-#  in the builder, and 'curl'
-RUN apt-get update && apt-get upgrade -y && apt-get install -y \
-    emacs \
+    # also install 'curl':
     curl \
   && apt-get clean -y && apt-get autoclean -y && apt-get autoremove -y
 
-# Install dcmstack from github (using git):
+# Install dcmstack from github:
 #ENV DCMSTACK_VERSION=v0.7
 ENV DCMSTACK_VERSION=fa24702f09cff111a76297e9f01240d06b4cd1a2
 RUN mkdir /tmp/dcmstack && \
@@ -37,11 +30,11 @@ RUN mkdir /tmp/dcmstack && \
     easy_install ./ && \
     cd / && rm -rf /tmp/dcmstack
 
-# Install dcm2niix from github:
+# Install dcm2niix from github (it requires git to "superbuild"):
 # Install also pigz-- it makes dcm2niix compress NIfTI files faster
 ENV DCM2NIIX_VERSION=v1.0.20190902
 RUN apt-get update && apt-get upgrade -y && \
-    apt-get install -y pigz && \
+    apt-get install -y pigz git-core && \
     apt-get clean -y && apt-get autoclean -y && apt-get autoremove -y && \
     \
     mkdir /tmp/dcm2niix && \
