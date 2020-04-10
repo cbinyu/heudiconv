@@ -458,7 +458,7 @@ def convert_physio(item_dicoms, bids_options, prefix):
     None
     """
     if bids_options is not None:
-        from dcm2bidsphysio import dcm2bidsphysio
+        from bidsphysio import dcm2bidsphysio
         item_dicoms = list(map(op.abspath, item_dicoms)) # absolute paths
         if len(item_dicoms)>1:
             lgr.warning("More than one PHYSIO file has been found for this series. "

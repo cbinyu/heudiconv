@@ -21,8 +21,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
   && apt-get clean -y && apt-get autoclean -y && apt-get autoremove -y
 
 # Install dcmstack from github:
-#ENV DCMSTACK_VERSION=v0.7
-ENV DCMSTACK_VERSION=fa24702f09cff111a76297e9f01240d06b4cd1a2
+ENV DCMSTACK_VERSION=v0.8
 RUN mkdir /tmp/dcmstack && \
     curl -sSL https://github.com/moloney/dcmstack/archive/${DCMSTACK_VERSION}.tar.gz \
         | tar -vxz -C /tmp/dcmstack --strip-components=1 && \
@@ -32,7 +31,7 @@ RUN mkdir /tmp/dcmstack && \
 
 # Install dcm2niix from github (it requires git to "superbuild"):
 # Install also pigz-- it makes dcm2niix compress NIfTI files faster
-ENV DCM2NIIX_VERSION=v1.0.20190902
+ENV DCM2NIIX_VERSION=v1.0.20200331
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y pigz git-core && \
     apt-get clean -y && apt-get autoclean -y && apt-get autoremove -y && \
@@ -45,17 +44,17 @@ RUN apt-get update && apt-get upgrade -y && \
     make && make install && \
     cd / && rm -rf /tmp/dcm2niix
 
-# Install dcm2bidsphysio from github:
-RUN mkdir /tmp/dcm2bidsphysio && \
-    curl -sSL https://github.com/cbinyu/dcm2bidsphysio/archive/master.tar.gz \
-        | tar -vxz -C /tmp/dcm2bidsphysio --strip-components=1 && \
-    cd /tmp/dcm2bidsphysio && \
+# Install bidsphysio from github:
+RUN mkdir /tmp/bidsphysio && \
+    curl -sSL https://github.com/cbinyu/bidsphysio/archive/master.tar.gz \
+        | tar -vxz -C /tmp/bidsphysio --strip-components=1 && \
+    cd /tmp/bidsphysio && \
     pip install . && \
     cd / && \
-    rm -rf /tmp/dcm2bidsphysio
+    rm -rf /tmp/bidsphysio
 
 # Install heudiconv from github:
-ENV CBIHEUDICONV_VERSION=v3.2
+ENV CBIHEUDICONV_VERSION=v3.3
 RUN mkdir /tmp/heudiconv && \
     curl -sSL https://github.com/cbinyu/heudiconv/archive/${CBIHEUDICONV_VERSION}.tar.gz \
         | tar -vxz -C /tmp/heudiconv --strip-components=1 && \
