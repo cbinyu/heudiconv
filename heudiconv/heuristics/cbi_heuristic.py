@@ -10,10 +10,18 @@ import os
 #       images are extracted in the 'sourcedata' folder.
 
 
-def create_key(template, outtype=('nii.gz','dicom'), annotation_classes=None):
-    if template is None or not template:
-        raise ValueError('Template must be a valid format string')
-    return (template, outtype, annotation_classes)
+def create_key(subdir, file_suffix, outtype=('nii.gz', 'dicom'),
+               annotation_classes=None, prefix=''):
+    if not subdir:
+        raise ValueError('subdir must be a valid format string')
+    # may be even add "performing physician" if defined??
+    template = os.path.join(
+        prefix,
+        "{bids_subject_session_dir}",
+        subdir,
+        "{bids_subject_session_prefix}_%s" % file_suffix
+    )
+    return template, outtype, annotation_classes
 
 
 def find_PE_direction_from_protocol_name( prot_name, default_dir_name='normal' ):
@@ -88,32 +96,34 @@ def infotodict(seqinfo):
     """
     ###   NIFTI and DICOM   ###
     # anat:
-    t1 = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_T1w')
-    t2 = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_T2w')
-    pd_bias_body = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-biasBody_run-{item:02d}_PD')
-    pd_bias_receive = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-biasReceive_run-{item:02d}_PD')
+    t1 = create_key('anat','acq-{acq}_run-{item:02d}_T1w')
+    t2 = create_key('anat','acq-{acq}_run-{item:02d}_T2w')
+    pd_bias_body = create_key('anat','acq-biasBody_run-{item:02d}_PD')
+    pd_bias_receive = create_key('anat','acq-biasReceive_run-{item:02d}_PD')
     # func:
-    # For the functional runs, we want to have a different key for each task.  Since we don't know a-priori what the task
-    #  names will be, we don't create the different keys here, but we'll create them dynamically, as needed.
+    # For the functional runs, we want to have a different key for each task.
+    # Since we don't know a-priori what the task names will be, we don't create
+    # the different keys here, but we'll create them dynamically, as needed.
     # diffusion:
-    dwi = create_key('{bids_subject_session_dir}/dwi/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_dwi')
-    dwi_sbref = create_key('{bids_subject_session_dir}/dwi/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_sbref')
+    dwi = create_key('dwi','acq-{acq}_run-{item:02d}_dwi')
+    dwi_sbref = create_key('dwi','acq-{acq}_run-{item:02d}_sbref')
     # fmaps:
-    # For the SE-EPI field-map runs (for topup), both for fmri and dwi, we want to have a different key for
-    #  each PE direction.  Rather than creating the different keys here, we'll create them dynamically, as needed.
-    fmap_gre_mag = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-GRE_run-{item:02d}_magnitude')       # GRE fmap
-    fmap_gre_phase = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-GRE_run-{item:02d}_phasediff')     #
+    # For the SE-EPI field-map runs (for topup), both for fmri and dwi, we want
+    # to have a different key for each PE direction.  Rather than creating the
+    # different keys here, we'll create them dynamically, as needed.
+    fmap_gre_mag = create_key('fmap','acq-GRE_run-{item:02d}_magnitude')       # GRE fmap
+    fmap_gre_phase = create_key('fmap','acq-GRE_run-{item:02d}_phasediff')     #
 
     ###  DICOM only   ###
-    # These are images we don't want for analysis, but we still want to keep a copy of
-    #   the DICOMs in the 'sourcedata' folder.  We manage that by specifying the 'outtype'
-    #   to be only 'dicom':
+    # These are images we don't want for analysis, but we still want to keep a
+    # copy of the DICOMs in the 'sourcedata' folder.  We manage that by
+    # specifying the 'outtype' to be only 'dicom':
     # anat:
-    t1_scout = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-Scout_run-{item:02d}_T1w', outtype = ('dicom',))
-    t1_dicom = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_T1w', outtype = ('dicom',))
-    t2_dicom = create_key('{bids_subject_session_dir}/anat/{bids_subject_session_prefix}_acq-{acq}_run-{item:02d}_T2w', outtype = ('dicom',))
+    t1_scout = create_key('anat','acq-Scout_run-{item:02d}_T1w', outtype = ('dicom',))
+    t1_dicom = create_key('anat','acq-{acq}_run-{item:02d}_T1w', outtype = ('dicom',))
+    t2_dicom = create_key('anat','acq-{acq}_run-{item:02d}_T2w', outtype = ('dicom',))
     # Misc:
-    phoenix_doc = create_key('{bids_subject_session_dir}/misc/{bids_subject_session_prefix}_phoenix', outtype = ('dicom',))
+    phoenix_doc = create_key('misc','phoenix', outtype = ('dicom',))
 
     info = {t1:[], t2:[], pd_bias_body:[], pd_bias_receive:[],
             dwi:[], dwi_sbref:[],
@@ -134,7 +144,7 @@ def infotodict(seqinfo):
             info[t1_scout].append({'item': s.series_id})
 
         # 2) High resolution T1w:
-        # single volume, protocol name including T1, T1w, MPRAGE, MP-RAGE, MPR,...
+        # single volume, protocol name including T1, MPRAGE, MP-RAGE, MPR,...
         if ((s.dim4 == 1) and ( ('t1' in s.protocol_name.lower()) or
                                 (('mp' in s.protocol_name.lower()) and ('rage' in s.protocol_name.lower())) or
                                 ('mpr' in s.protocol_name.lower()) ) and
@@ -143,10 +153,11 @@ def infotodict(seqinfo):
             direction = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='' )
             acq = 'highres' + direction   # note: if direction is empty, aqc='highres'
 
-            # If this image is NOT normalized, check if the previous or the following
-            #   one has identical acquisition date and time.  If so, we'll keep only
-            #   the normalized version, and for this one we keep just the DICOM.
-            #   (Note: older versions of heudiconv don't include 'time'):
+            # If this image is NOT normalized, check if the previous or the
+            # following one has identical acquisition date and time.  If so,
+            # we'll keep only the normalized version, and for this one we keep
+            # just the DICOM.
+            # (Note: older versions of heudiconv don't include 'time'):
             # Otherwise, we extract it:
             if ( ('NORM' not in s.image_type) and
                  hasattr(s,'time') and
@@ -157,7 +168,7 @@ def infotodict(seqinfo):
                 info[t1].append({'item': s.series_id, 'acq': acq})
 
         # 3) FSE T1w:
-        # single volume, series description includes TSE or FSE, protocol name includes T1, T1w
+        # single volume, series description includes TSE or FSE, protocol name includes T1
         if ((s.dim4 == 1) and ('t1' in s.protocol_name.lower()) and ('tse' in s.sequence_name)):
             # check the PE direction:
             direction = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='' )
@@ -228,8 +239,8 @@ def infotodict(seqinfo):
                 # we have a magnitude/phase pair:
 
                 # dictionary keys specific for this task type:
-                mykey_mag = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_bold" % task)
-                mykey_pha = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_phase" % task)
+                mykey_mag = create_key('func','task-%s_acq-{acq}_run-{item:02d}_bold' % task)
+                mykey_pha = create_key('func','task-%s_acq-{acq}_run-{item:02d}_phase' % task)
                 add_series_to_info_dict( s.series_id, mykey_mag, info, acq )
                 add_series_to_info_dict( seqinfo[idx + 1].series_id, mykey_pha, info, acq )
 
@@ -239,7 +250,7 @@ def infotodict(seqinfo):
                 # we only have a magnitude image
 
                 # dictionary key specific for this task type:
-                mykey = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_bold" % task)
+                mykey = create_key('func','task-%s_acq-{acq}_run-{item:02d}_bold' % task)
                 add_series_to_info_dict( s.series_id, mykey, info, acq )
 
                 next_series = idx+1
@@ -249,7 +260,7 @@ def infotodict(seqinfo):
             #  previous run protocol name ended in _SBREF, to assign the
             #  same task name and run number.
             if (idx > 0) and (seqinfo[idx - 1].series_description.lower().endswith('_sbref')):
-                mykey_sb = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_sbref" % task)
+                mykey_sb = create_key('func','task-%s_acq-{acq}_run-{item:02d}_sbref' % task)
                 add_series_to_info_dict( seqinfo[idx - 1].series_id, mykey_sb, info, acq )
 
             ###   PHYSIO LOG   ###
@@ -257,7 +268,7 @@ def infotodict(seqinfo):
             #  next run image_type lists "PHYSIO", to assign the
             #  same task name and run number.
             if (next_series < len(seqinfo)) and ('PHYSIO' in seqinfo[next_series].image_type):
-                mykey_physio = create_key("{bids_subject_session_dir}/func/{bids_subject_session_prefix}_task-%s_acq-{acq}_run-{item:02d}_physio" % task, outtype = ('dicom','physio'))
+                mykey_physio = create_key('func','task-%s_acq-{acq}_run-{item:02d}_physio' % task, outtype = ('dicom','physio'))
                 add_series_to_info_dict( seqinfo[next_series].series_id, mykey_physio, info, acq )
 
 
@@ -286,8 +297,8 @@ def infotodict(seqinfo):
                 # we have a magnitude/phase pair:
 
                 # dictionary keys specific for this SE-fmap direction:
-                mykey_mag = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_rec-magnitude_dir-%s_run-{item:02d}_epi' % direction)
-                mykey_pha = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_rec-phase_dir-%s_run-{item:02d}_epi' % direction)
+                mykey_mag = create_key('fmap','acq-fMRI_rec-magnitude_dir-%s_run-{item:02d}_epi' % direction)
+                mykey_pha = create_key('fmap','acq-fMRI_rec-phase_dir-%s_run-{item:02d}_epi' % direction)
                 add_series_to_info_dict( s.series_id, mykey_mag, info )
                 add_series_to_info_dict( seqinfo[idx + 1].series_id, mykey_pha, info )
 
@@ -295,7 +306,7 @@ def infotodict(seqinfo):
                 # we only have a magnitude image
 
                 # dictionary key specific for this SE-fmap direction:
-                mykey = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-fMRI_dir-%s_run-{item:02d}_epi' % direction)
+                mykey = create_key('fmap','acq-fMRI_dir-%s_run-{item:02d}_epi' % direction)
                 add_series_to_info_dict( s.series_id, mykey, info )
 
 
@@ -340,13 +351,13 @@ def infotodict(seqinfo):
                 direction = find_PE_direction_from_protocol_name( s.protocol_name, default_dir_name='normal' )
 
                 # dictionary key specific for this SE-fmap direction:
-                mykey = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-%s_run-{item:02d}_epi' % direction)
+                mykey = create_key('fmap','acq-dwi_dir-%s_run-{item:02d}_epi' % direction)
                 add_series_to_info_dict( s.series_id, mykey, info )
 
                 if ( (idx > 0) and
                         (seqinfo[idx - 1].series_description[-6:] == '_SBRef') ):
                     # TO-DO: for now, extract the _sbref dwi fmap image as DICOMs, because BIDS doesn't allow them.
-                    mykey = create_key('{bids_subject_session_dir}/fmap/{bids_subject_session_prefix}_acq-dwi_dir-%s_run-{item:02d}_sbref' % direction, outtype = ('dicom',))
+                    mykey = create_key('fmap','acq-dwi_dir-%s_run-{item:02d}_sbref' % direction, outtype = ('dicom',))
                     add_series_to_info_dict( seqinfo[idx - 1].series_id, mykey, info )
 
         ###   PHOENIX FILE   ###
