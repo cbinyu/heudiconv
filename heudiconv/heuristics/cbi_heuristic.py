@@ -129,6 +129,7 @@ def infotodict(seqinfo):
             dwi:[], dwi_sbref:[],
             fmap_gre_mag:[], fmap_gre_phase:[],
             t1_scout:[], t1_dicom: [], t2_dicom: [], phoenix_doc:[]}
+    run_numbers = {}    # dict with the run number for each task
 
     for idx, s in enumerate(seqinfo):
         #pdb.set_trace()
@@ -228,6 +229,11 @@ def infotodict(seqinfo):
 
             # check task name:
             task = extract_task_name( s.protocol_name )
+            # find the run number for this task:
+            if run_numbers.get(task):
+                run_numbers[task] += 1
+            else:
+                run_numbers[task] = 1
 
             ###   functional -- is phase image present?   ###
             # At least for Siemens systems, if magnitude/phase was selected, the
@@ -239,8 +245,8 @@ def infotodict(seqinfo):
                 # we have a magnitude/phase pair:
 
                 # dictionary keys specific for this task type:
-                mykey_mag = create_key('func','task-%s_acq-{acq}_run-{item:02d}_bold' % task)
-                mykey_pha = create_key('func','task-%s_acq-{acq}_run-{item:02d}_phase' % task)
+                mykey_mag = create_key('func','task-%s_acq-{acq}_run-%02d_bold' % (task, run_numbers[task]))
+                mykey_pha = create_key('func','task-%s_acq-{acq}_run-%02d_phase' % (task, run_numbers[task]))
                 add_series_to_info_dict( s.series_id, mykey_mag, info, acq )
                 add_series_to_info_dict( seqinfo[idx + 1].series_id, mykey_pha, info, acq )
 
@@ -250,7 +256,7 @@ def infotodict(seqinfo):
                 # we only have a magnitude image
 
                 # dictionary key specific for this task type:
-                mykey = create_key('func','task-%s_acq-{acq}_run-{item:02d}_bold' % task)
+                mykey = create_key('func','task-%s_acq-{acq}_run-%02d_bold' % (task, run_numbers[task]))
                 add_series_to_info_dict( s.series_id, mykey, info, acq )
 
                 next_series = idx+1
@@ -260,7 +266,7 @@ def infotodict(seqinfo):
             #  previous run protocol name ended in _SBREF, to assign the
             #  same task name and run number.
             if (idx > 0) and (seqinfo[idx - 1].series_description.lower().endswith('_sbref')):
-                mykey_sb = create_key('func','task-%s_acq-{acq}_run-{item:02d}_sbref' % task)
+                mykey_sb = create_key('func','task-%s_acq-{acq}_run-%02d_sbref' % (task, run_numbers[task]))
                 add_series_to_info_dict( seqinfo[idx - 1].series_id, mykey_sb, info, acq )
 
             ###   PHYSIO LOG   ###
@@ -268,7 +274,7 @@ def infotodict(seqinfo):
             #  next run image_type lists "PHYSIO", to assign the
             #  same task name and run number.
             if (next_series < len(seqinfo)) and ('PHYSIO' in seqinfo[next_series].image_type):
-                mykey_physio = create_key('func','task-%s_acq-{acq}_run-{item:02d}_physio' % task, outtype = ('dicom','physio'))
+                mykey_physio = create_key('func','task-%s_acq-{acq}_run-%02d_physio' % (task, run_numbers[task]), outtype = ('dicom','physio'))
                 add_series_to_info_dict( seqinfo[next_series].series_id, mykey_physio, info, acq )
 
 
