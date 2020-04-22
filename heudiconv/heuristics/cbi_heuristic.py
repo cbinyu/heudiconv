@@ -302,7 +302,7 @@ def infotodict(seqinfo):
                 'M' in s.image_type
                 or 'FMRI' in s.image_type
             )
-            and s.series_description[-6:].lower() != '_sbref'
+            and not s.series_description.lower().endswith('_sbref')
             and not 'DERIVED' in s.image_type
         ):
 
@@ -411,7 +411,7 @@ def infotodict(seqinfo):
                 or 'map'   in s.protocol_name.lower()
                 or 'field' in s.protocol_name.lower()
             )
-            and s.series_description[-6:] != '_SBRef'
+            and not s.series_description.lower().endswith('_sbref')
         ):
             # check PE direction:
             direction = find_PE_direction_from_protocol_name(
@@ -493,7 +493,7 @@ def infotodict(seqinfo):
                 # check to see if the previous run is a SBREF:
                 if (
                     idx > 0
-                    and seqinfo[idx - 1].series_description[-6:] == '_SBRef'
+                    and seqinfo[idx - 1].series_description.lower().endswith('_sbref')
                     and 'epse2d' in seqinfo[idx - 1].sequence_name
                 ):
                     info[dwi_sbref].append(
@@ -517,7 +517,7 @@ def infotodict(seqinfo):
 
                 if (
                     idx > 0
-                    and seqinfo[idx - 1].series_description[-6:] == '_SBRef'
+                    and seqinfo[idx - 1].series_description.lower().endswith('_sbref')
                 ):
                     # TO-DO: for now, extract the _sbref dwi fmap image
                     # as DICOMs, because BIDS doesn't allow them.
