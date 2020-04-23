@@ -157,13 +157,15 @@ def infotodict(seqinfo):
         direction = find_PE_direction_from_protocol_name(
             s.protocol_name, default_dir_name=''
         )
+        # we don't need the original case of the protocol name:
+        prot_name = s.protocol_name.lower()
         acq = ''
 
         ###   T1w   ###
         # 1) Auto-Align scout (the original images, not the derived):
         #    look for "AA*Scout" or "AA*scout" in protocol_name:
         if (
-            'scout' in s.protocol_name.lower()
+            'scout' in prot_name
             and s.is_derived == False
         ):
             info[t1_scout].append({'item': s.series_id})
@@ -174,12 +176,9 @@ def infotodict(seqinfo):
             s.dim4 == 1
             and 'fl' in s.sequence_name
             and (
-                't1' in s.protocol_name.lower()
-                or (
-                    'mp' in s.protocol_name.lower()
-                    and 'rage' in s.protocol_name.lower()
-                )
-                or 'mpr' in s.protocol_name.lower()
+                't1' in prot_name
+                or ('mp' in prot_name and 'rage' in prot_name)
+                or 'mpr' in prot_name
             )
         ):
             acq = 'highres' + direction   # if direction is empty, aqc='highres'
@@ -215,7 +214,7 @@ def infotodict(seqinfo):
         # protocol name includes T1
         elif (
             s.dim4 == 1
-            and 't1' in s.protocol_name.lower()
+            and 't1' in prot_name
             and 'tse' in s.sequence_name
         ):
             acq = 'fse' + direction   # if direction is empty, aqc='fse'
@@ -228,9 +227,9 @@ def infotodict(seqinfo):
             s.dim4 == 1
             and (
                 'T2' in s.protocol_name
-                or 'tse' in s.protocol_name.lower()
-                or 'space' in s.protocol_name.lower()
-                or 'spc' in s.protocol_name.lower()
+                or 'tse' in prot_name
+                or 'space' in prot_name
+                or 'spc' in prot_name
             )
         ):
             acq = 'highres' + direction   # note: if direction is empty, aqc='highres'
@@ -273,10 +272,10 @@ def infotodict(seqinfo):
         # BIAS images  (for coil sensitivity estimation) are typically
         # PD-weighted
         elif (
-            'bias' in s.protocol_name.lower()
+            'bias' in prot_name
             and 'tfl3d' in s.sequence_name
         ):
-            if 'body' in s.protocol_name.lower():
+            if 'body' in prot_name:
                 info[pd_bias_body].append({'item': s.series_id})
             else:
                 info[pd_bias_receive].append({'item': s.series_id})
@@ -397,9 +396,9 @@ def infotodict(seqinfo):
             and 'epse2d' in s.sequence_name
             and 'M' in s.image_type
             and (
-                'dist'  in s.protocol_name.lower()
-                or 'map'   in s.protocol_name.lower()
-                or 'field' in s.protocol_name.lower()
+                'dist' in prot_name
+                or 'map' in prot_name
+                or 'field' in prot_name
             )
             and not s.series_description.lower().endswith('_sbref')
         ):
@@ -446,12 +445,9 @@ def infotodict(seqinfo):
         # B) GRE fmap:
         elif (
             'fm2d' in s.sequence_name
-            and (
-                'fieldmap' in s.protocol_name.lower()
-                or 'field_map' in s.protocol_name.lower()
-            )
+            and ('fieldmap' in prot_name or 'field_map' in prot_name)
         ):
-            if (s.image_type[2] == 'M'):
+            if s.image_type[2] == 'M':
                 # magnitude image
                 # For now, we don't need to separate according to TEs,
                 # because dcm2niix seems to create 2 NIfTI files
@@ -459,7 +455,7 @@ def infotodict(seqinfo):
                 # specifies. If this changes, we would have to do
                 # something, like s.TE
                 info[fmap_gre_mag].append({'item': s.series_id})
-            elif (s.image_type[2] == 'P'):
+            elif s.image_type[2] == 'P':
                 # phase image:
                 info[fmap_gre_phase].append({'item': s.series_id})
 
@@ -467,13 +463,13 @@ def infotodict(seqinfo):
         ###   DIFFUSION   ###
 
         # We could also check: (s.image_type[2] == 'DIFFUSION')
-        elif ('ep_b' in s.sequence_name):
+        elif 'ep_b' in s.sequence_name:
             # Siemens product diffusion sequence
 
             # This is not very rigorous, but in general, diffusion runs
             # will have more than a couple of volumes.  I'll use 5, to
             # be safe:
-            if ( s.dim4 >= 5 ):
+            if s.dim4 >= 5:
                 # this is a standard diffusion acquisition
                 acq = str(s.dim4)+'vols'
                 info[dwi].append({'item': s.series_id, 'acq': acq})
@@ -499,7 +495,7 @@ def infotodict(seqinfo):
                     'fmap',
                     'acq-dwi_dir-%s_run-{item:02d}_epi' % run_dir
                 )
-                add_series_to_info_dict( s.series_id, mykey, info )
+                add_series_to_info_dict(s.series_id, mykey, info)
 
                 if (
                     idx > 0
@@ -512,7 +508,9 @@ def infotodict(seqinfo):
                         'acq-dwi_dir-%s_run-{item:02d}_sbref' % run_dir,
                         outtype = ('dicom',)
                     )
-                    add_series_to_info_dict(seqinfo[idx - 1].series_id, mykey, info)
+                    add_series_to_info_dict(
+                        seqinfo[idx - 1].series_id, mykey, info
+                    )
 
         ###   PHOENIX FILE   ###
 
