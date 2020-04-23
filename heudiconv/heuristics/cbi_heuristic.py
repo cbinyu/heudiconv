@@ -108,6 +108,29 @@ def previous_series_is_sbref(seqinfo, index):
         and seqinfo[index - 1].series_description.lower().endswith('_sbref')
     )
 
+def previous_or_next_series_has_identical_start_time(seqinfo, index):
+    """
+    Check if either the previous or next series has identical start time
+    If so, they are just the same acquisition and the only difference is
+    that one of them would be intensity-normalized.
+    """
+
+    if not hasattr(seqinfo[index],'time'):
+        return False
+    else:
+        return (
+            (
+                index+1 < len(seqinfo)
+                and seqinfo[index].date == seqinfo[index+1].date
+                and seqinfo[index].time == seqinfo[index+1].time
+            )
+            or (
+                index > 0
+                and seqinfo[index].date == seqinfo[index-1].date
+                and seqinfo[index].time == seqinfo[index-1].time
+            )
+        )
+
 
 def infotodict(seqinfo):
     """
@@ -203,19 +226,7 @@ def infotodict(seqinfo):
             # Otherwise, we extract it:
             if (
                 'NORM' not in s.image_type
-                and hasattr(s,'time')
-                and (
-                    (
-                        idx+1 < len(seqinfo)
-                        and s.date == seqinfo[idx+1].date
-                        and s.time == seqinfo[idx+1].time
-                    )
-                    or (
-                        idx > 0
-                        and s.date == seqinfo[idx-1].date
-                        and s.time == seqinfo[idx-1].time
-                    )
-                )
+                and previous_or_next_series_has_identical_start_time(seqinfo, idx)
             ):
                 info[t1_dicom].append({'item': s.series_id, 'acq': acq})
             else:
@@ -254,19 +265,7 @@ def infotodict(seqinfo):
             # Otherwise, we extract it:
             if (
                 'NORM' not in s.image_type
-                and hasattr(s,'time')
-                and (
-                    (
-                        idx+1 < len(seqinfo)
-                        and s.date == seqinfo[idx+1].date
-                        and s.time == seqinfo[idx+1].time
-                    )
-                    or (
-                        idx > 0
-                        and s.date == seqinfo[idx-1].date
-                        and s.time == seqinfo[idx-1].time
-                    )
-                )
+                and previous_or_next_series_has_identical_start_time(seqinfo, idx)
             ):
                 info[t2_dicom].append({'item': s.series_id, 'acq': acq})
             else:
