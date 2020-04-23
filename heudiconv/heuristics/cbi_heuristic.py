@@ -153,6 +153,10 @@ def infotodict(seqinfo):
         # s is a namedtuple with fields equal to the names of the columns
         # found in the dicominfo.tsv file
 
+        # check the PE direction:
+        direction = find_PE_direction_from_protocol_name(
+            s.protocol_name, default_dir_name=''
+        )
         acq = ''
 
         ###   T1w   ###
@@ -178,10 +182,6 @@ def infotodict(seqinfo):
                 or 'mpr' in s.protocol_name.lower()
             )
         ):
-            # check the PE direction:
-            direction = find_PE_direction_from_protocol_name(
-                s.protocol_name, default_dir_name=''
-            )
             acq = 'highres' + direction   # if direction is empty, aqc='highres'
 
             # If this image is NOT normalized, check if the previous or
@@ -218,10 +218,6 @@ def infotodict(seqinfo):
             and 't1' in s.protocol_name.lower()
             and 'tse' in s.sequence_name
         ):
-            # check the PE direction:
-            direction = find_PE_direction_from_protocol_name(
-                s.protocol_name, default_dir_name=''
-            )
             acq = 'fse' + direction   # if direction is empty, aqc='fse'
             info[t1].append({'item': s.series_id, 'acq': acq})
 
@@ -237,10 +233,6 @@ def infotodict(seqinfo):
                 or 'spc' in s.protocol_name.lower()
             )
         ):
-            # check the PE direction:
-            direction = find_PE_direction_from_protocol_name(
-                s.protocol_name, default_dir_name=''
-            )
             acq = 'highres' + direction   # note: if direction is empty, aqc='highres'
 
             # If this image is NOT normalized, check if the previous or
@@ -308,9 +300,7 @@ def infotodict(seqinfo):
 
             # check PE direction:
             # we will write the direction under the 'acq-' tag.
-            acq = find_PE_direction_from_protocol_name(
-                s.protocol_name, default_dir_name='normal'
-            )
+            acq = direction or 'normal'
 
             # check task name:
             task = extract_task_name(s.protocol_name)
@@ -414,9 +404,7 @@ def infotodict(seqinfo):
             and not s.series_description.lower().endswith('_sbref')
         ):
             # check PE direction:
-            direction = find_PE_direction_from_protocol_name(
-                s.protocol_name, default_dir_name='normal'
-            )
+            run_dir = direction or 'normal'
 
             # is phase image present?
             # At least for Siemens systems, if magnitude/phase was
@@ -434,11 +422,11 @@ def infotodict(seqinfo):
                 # dictionary keys specific for this SE-fmap direction:
                 mykey_mag = create_key(
                     'fmap',
-                    'acq-fMRI_rec-magnitude_dir-%s_run-{item:02d}_epi' % direction
+                    'acq-fMRI_rec-magnitude_dir-%s_run-{item:02d}_epi' % run_dir
                 )
                 mykey_pha = create_key(
                     'fmap',
-                    'acq-fMRI_rec-phase_dir-%s_run-{item:02d}_epi' % direction
+                    'acq-fMRI_rec-phase_dir-%s_run-{item:02d}_epi' % run_dir
                 )
                 add_series_to_info_dict(s.series_id, mykey_mag, info)
                 add_series_to_info_dict(
@@ -451,7 +439,7 @@ def infotodict(seqinfo):
                 # dictionary key specific for this SE-fmap direction:
                 mykey = create_key(
                     'fmap',
-                    'acq-fMRI_dir-%s_run-{item:02d}_epi' % direction
+                    'acq-fMRI_dir-%s_run-{item:02d}_epi' % run_dir
                 )
                 add_series_to_info_dict(s.series_id, mykey, info)
 
@@ -504,14 +492,12 @@ def infotodict(seqinfo):
                 # this is a fmap for diffusion.
 
                 # Get the PE direction, for topup:
-                direction = find_PE_direction_from_protocol_name(
-                    s.protocol_name, default_dir_name='normal'
-                )
+                run_dir = direction or 'normal'
 
                 # dictionary key specific for this SE-fmap direction:
                 mykey = create_key(
                     'fmap',
-                    'acq-dwi_dir-%s_run-{item:02d}_epi' % direction
+                    'acq-dwi_dir-%s_run-{item:02d}_epi' % run_dir
                 )
                 add_series_to_info_dict( s.series_id, mykey, info )
 
@@ -523,7 +509,7 @@ def infotodict(seqinfo):
                     # as DICOMs, because BIDS doesn't allow them.
                     mykey = create_key(
                         'fmap',
-                        'acq-dwi_dir-%s_run-{item:02d}_sbref' % direction,
+                        'acq-dwi_dir-%s_run-{item:02d}_sbref' % run_dir,
                         outtype = ('dicom',)
                     )
                     add_series_to_info_dict(seqinfo[idx - 1].series_id, mykey, info)
