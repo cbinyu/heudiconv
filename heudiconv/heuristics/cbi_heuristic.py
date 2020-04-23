@@ -27,14 +27,14 @@ def create_key(subdir, file_suffix, outtype=('nii.gz', 'dicom'),
 def find_PE_direction_from_protocol_name(prot_name, default_dir_name='normal'):
     # valid phase-encoding directions in the protocol name
     PE_directions = ['AP','PA','RL','LR','rev']
-    for direction in PE_directions:
+    direction = default_dir_name
+    for peDir in PE_directions:
         if (
-            '_'+direction in prot_name
-            or '-'+direction in prot_name
+            '_'+peDir in prot_name
+            or '-'+peDir in prot_name
         ):
-            break    # we keep the current value of "direction"
-        else:
-            direction = default_dir_name    # fallback
+            direction = peDir
+            break
 
     return direction
 
@@ -512,7 +512,7 @@ def infotodict(seqinfo):
                 mykey = create_key(
                     'fmap',
                     'acq-dwi_dir-%s_run-{item:02d}_epi' % direction
-                    )
+                )
                 add_series_to_info_dict( s.series_id, mykey, info )
 
                 if (
