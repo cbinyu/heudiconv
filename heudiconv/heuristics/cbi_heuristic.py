@@ -170,7 +170,7 @@ def infotodict(seqinfo):
 
         # 2) High resolution T1w:
         # single volume, protocol name including T1, MPRAGE, MP-RAGE, MPR,...
-        if (
+        elif (
             s.dim4 == 1
             and 'fl' in s.sequence_name
             and (
@@ -213,7 +213,7 @@ def infotodict(seqinfo):
         # 3) FSE T1w:
         # single volume, series description includes TSE or FSE,
         # protocol name includes T1
-        if (
+        elif (
             s.dim4 == 1
             and 't1' in s.protocol_name.lower()
             and 'tse' in s.sequence_name
@@ -224,7 +224,7 @@ def infotodict(seqinfo):
         ###   T2w   ###
         # 1) Standard high-res T2w used for cortical segmentation:
         # single volume, protocol name including T2, T2w, TSE, SPACE, SPC:
-        if (
+        elif (
             s.dim4 == 1
             and (
                 'T2' in s.protocol_name
@@ -263,7 +263,7 @@ def infotodict(seqinfo):
 
         # 2) Fast Spin-Echo used as a localizer:
         # single volume, sequence name: 'h2d1' ('haste')"
-        if (
+        elif (
             s.dim4 == 1
             and 'h2d1' in s.sequence_name
         ):
@@ -272,7 +272,7 @@ def infotodict(seqinfo):
         ###   PD   ###
         # BIAS images  (for coil sensitivity estimation) are typically
         # PD-weighted
-        if (
+        elif (
             'bias' in s.protocol_name.lower()
             and 'tfl3d' in s.sequence_name
         ):
@@ -287,7 +287,7 @@ def infotodict(seqinfo):
         # image. So we only focus on the magnitude series (to exclude
         # phase images) and more than 3 volumes (to exclude _SBRef) and
         # then we search if the phase and/or _SBRef are present.
-        if (
+        elif (
             s.dim4 >= 4
             and 'epfid2d' in s.sequence_name
             and (
@@ -392,7 +392,7 @@ def infotodict(seqinfo):
         #   the phase images below
         #   Also, we exclude _sbref because the sbref from MB diffusion
         #   also have epse2d in the sequence_name
-        if (
+        elif (
             s.dim4 <= 3
             and 'epse2d' in s.sequence_name
             and 'M' in s.image_type
@@ -444,7 +444,7 @@ def infotodict(seqinfo):
                 add_series_to_info_dict(s.series_id, mykey, info)
 
         # B) GRE fmap:
-        if (
+        elif (
             'fm2d' in s.sequence_name
             and (
                 'fieldmap' in s.protocol_name.lower()
@@ -467,7 +467,7 @@ def infotodict(seqinfo):
         ###   DIFFUSION   ###
 
         # We could also check: (s.image_type[2] == 'DIFFUSION')
-        if ('ep_b' in s.sequence_name):
+        elif ('ep_b' in s.sequence_name):
             # Siemens product diffusion sequence
 
             # This is not very rigorous, but in general, diffusion runs
@@ -516,7 +516,7 @@ def infotodict(seqinfo):
 
         ###   PHOENIX FILE   ###
 
-        if (
+        elif (
             'PhoenixZIPReport' in s.series_description
             and s.image_type[3] == 'CSA REPORT'
         ):
