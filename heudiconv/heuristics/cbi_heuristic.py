@@ -97,6 +97,18 @@ def add_series_to_info_dict(series_id, mykey, info, acq=''):
             info[mykey] = [{'item': series_id, 'acq': acq}]
 
 
+def previous_series_is_sbref(seqinfo, index):
+    """
+    Checks if the previous series is a SBRef image
+    seqinfo: list with the sequences information
+    index: index of the series, so the previous series would be index-1
+    """
+    return (
+        index > 0
+        and seqinfo[index - 1].series_description.lower().endswith('_sbref')
+    )
+
+
 def infotodict(seqinfo):
     """
     Heuristic evaluator for determining which runs belong where allowed
@@ -336,7 +348,7 @@ def infotodict(seqinfo):
                     seqinfo[idx + 1].series_id, mykey_pha, info, acq
                 )
 
-                next_series = idx+2
+                next_series = idx+2    # used for physio log below
 
             else:
                 # we only have a magnitude image
@@ -348,16 +360,13 @@ def infotodict(seqinfo):
                 )
                 add_series_to_info_dict(s.series_id, mykey, info, acq)
 
-                next_series = idx+1
+                next_series = idx+1    # used for physio log below
 
             ###   SB REF   ###
             # here, within the functional run code, check to see if the
             #  previous run protocol name ended in _SBREF, to assign the
             #  same task name and run number.
-            if (
-                idx > 0
-                and seqinfo[idx - 1].series_description.lower().endswith('_sbref')
-            ):
+            if previous_series_is_sbref(seqinfo, idx):
                 mykey_sb = create_key(
                     'func',
                     'task-%s_acq-{acq}_run-%02d_sbref' % (task, run_numbers[task])
@@ -476,8 +485,7 @@ def infotodict(seqinfo):
 
                 # check to see if the previous run is a SBREF:
                 if (
-                    idx > 0
-                    and seqinfo[idx - 1].series_description.lower().endswith('_sbref')
+                    previous_series_is_sbref(seqinfo, idx)
                     and 'epse2d' in seqinfo[idx - 1].sequence_name
                 ):
                     info[dwi_sbref].append(
@@ -497,10 +505,7 @@ def infotodict(seqinfo):
                 )
                 add_series_to_info_dict(s.series_id, mykey, info)
 
-                if (
-                    idx > 0
-                    and seqinfo[idx - 1].series_description.lower().endswith('_sbref')
-                ):
+                if previous_series_is_sbref(seqinfo, idx):
                     # TO-DO: for now, extract the _sbref dwi fmap image
                     # as DICOMs, because BIDS doesn't allow them.
                     mykey = create_key(
