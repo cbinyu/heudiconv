@@ -108,28 +108,68 @@ def previous_series_is_sbref(seqinfo, index):
         and seqinfo[index - 1].series_description.lower().endswith('_sbref')
     )
 
-def previous_or_next_series_has_identical_start_time(seqinfo, index):
+
+def another_series_has_identical_start_time(seqinfo, index):
     """
-    Check if either the previous or next series has identical start time
-    If so, they are just the same acquisition and the only difference is
-    that one of them would be intensity-normalized.
+    Check if check if another series has identical start date and
+    time.
+    If so, they are just the same acquisition and the only difference
+    is that one of them would be intensity-normalized or motion-
+    corrected, etc.
     """
 
     if not hasattr(seqinfo[index],'time'):
         return False
     else:
-        return (
-            (
-                index+1 < len(seqinfo)
-                and seqinfo[index].date == seqinfo[index+1].date
-                and seqinfo[index].time == seqinfo[index+1].time
+        series_with_identical_start_time = [
+            s for s in seqinfo if (
+                s.date and s.date==seqinfo[index].date
+                and s.time and s.time==seqinfo[index].time
             )
-            or (
-                index > 0
-                and seqinfo[index].date == seqinfo[index-1].date
-                and seqinfo[index].time == seqinfo[index-1].time
+        ]
+        return len(series_with_identical_start_time)>1
+
+
+def sort_seqinfo_by_series_date_time(seqinfo):
+    """
+    Sorts the 'seqinfo' list according to the series acquisition date
+    and time (using the "series_uid" to make sure there are no repeats)
+
+    This assures that all the entries are in acquisition order (which
+    is not always the case).
+
+    input: seqinfo: original seqinfo list
+    output: sortedSeqinfo: seqinfo sorted list
+    """
+    # sort by concatenated date and time (strings):
+    # (use set to only keep unique ones):
+    dateTimes = set([s.date+s.time for s in seqinfo if s.date and s.time])
+    sortedSeqinfo = []
+    for dt in sorted(dateTimes):
+        dTseries = [
+            ss for ss in seqinfo if (
+                ss.date
+                and ss.time
+                and ss.date+ss.time == dt
             )
-        )
+        ]
+        # sort series with identical date and time by series_uid:
+        for sid in sorted([s.series_uid for s in dTseries if s.series_uid]):
+            for ss in dTseries:
+                if ss.series_uid==sid:
+                    sortedSeqinfo.append(ss)
+
+        # Now, add the series which do not have series_uid:
+        for ss in dTseries:
+            if ss not in sortedSeqinfo:
+                sortedSeqinfo.append(ss)
+
+    # Now, add the series which do not have date or time:
+    for ss in seqinfo:
+        if ss not in sortedSeqinfo:
+            sortedSeqinfo.append(ss)
+
+    return sortedSeqinfo
 
 
 def infotodict(seqinfo):
@@ -184,6 +224,10 @@ def infotodict(seqinfo):
             t1_scout:[], t1_dicom: [], t2_dicom: [], phoenix_doc:[]}
     run_numbers = {}    # dict with the run number for each task
 
+    # because not always are series sorted by acquisition date/time,
+    # sort them:
+    seqinfo = sort_seqinfo_by_series_date_time(seqinfo)
+
     for idx, s in enumerate(seqinfo):
         # s is a namedtuple with fields equal to the names of the columns
         # found in the dicominfo.tsv file
@@ -218,15 +262,15 @@ def infotodict(seqinfo):
         ):
             acq = 'highres' + direction   # if direction is empty, aqc='highres'
 
-            # If this image is NOT normalized, check if the previous or
-            # the following one has identical acquisition date and time.
+            # If this image is NOT normalized, check if another
+            # series has identical acquisition date and time.
             # If so, we'll keep only the normalized version, and for
             # this one we keep just the DICOM.
             # (Note: older versions of heudiconv don't include 'time'):
             # Otherwise, we extract it:
             if (
                 'NORM' not in s.image_type
-                and previous_or_next_series_has_identical_start_time(seqinfo, idx)
+                and another_series_has_identical_start_time(seqinfo, idx)
             ):
                 info[t1_dicom].append({'item': s.series_id, 'acq': acq})
             else:
@@ -257,15 +301,15 @@ def infotodict(seqinfo):
         ):
             acq = 'highres' + direction   # note: if direction is empty, aqc='highres'
 
-            # If this image is NOT normalized, check if the previous or
-            # the following one has identical acquisition date and time.
+            # If this image is NOT normalized, check if another
+            # series has identical acquisition date and time.
             # If so, we'll keep only the normalized version, and for
             # this one we keep just the DICOM.
             # (Note: older versions of heudiconv don't include 'time'):
             # Otherwise, we extract it:
             if (
                 'NORM' not in s.image_type
-                and previous_or_next_series_has_identical_start_time(seqinfo, idx)
+                and another_series_has_identical_start_time(seqinfo, idx)
             ):
                 info[t2_dicom].append({'item': s.series_id, 'acq': acq})
             else:
@@ -320,46 +364,32 @@ def infotodict(seqinfo):
             else:
                 run_numbers[task] = 1
 
-            ###   functional -- is phase image present?   ###
+            # dictionary key specific for this task type:
+            mykey = create_key(
+                'func',
+                'task-%s_acq-{acq}_run-%02d_bold' % (task, run_numbers[task])
+            )
+            add_series_to_info_dict(s.series_id, mykey, info, acq)
+            next_series = idx+1    # used for physio log below
+
+            ###   is phase image present?   ###
             # At least for Siemens systems, if magnitude/phase was
             # selected, the phase images come as a separate series
             # immediatelly following the magnitude series.
             # (note: make sure you don't check beyond the number of
             # elements in seqinfo...)
-
             if (
                 idx+1 < len(seqinfo)
                 and 'P' in seqinfo[idx+1].image_type
             ):
-                # we have a magnitude/phase pair:
-
-                # dictionary keys specific for this task type:
-                mykey_mag = create_key(
-                    'func',
-                    'task-%s_acq-{acq}_run-%02d_bold' % (task, run_numbers[task])
-                )
                 mykey_pha = create_key(
                     'func',
                     'task-%s_acq-{acq}_run-%02d_phase' % (task, run_numbers[task])
                 )
-                add_series_to_info_dict(s.series_id, mykey_mag, info, acq)
                 add_series_to_info_dict(
                     seqinfo[idx + 1].series_id, mykey_pha, info, acq
                 )
-
                 next_series = idx+2    # used for physio log below
-
-            else:
-                # we only have a magnitude image
-
-                # dictionary key specific for this task type:
-                mykey = create_key(
-                    'func',
-                    'task-%s_acq-{acq}_run-%02d_bold' % (task, run_numbers[task])
-                )
-                add_series_to_info_dict(s.series_id, mykey, info, acq)
-
-                next_series = idx+1    # used for physio log below
 
             ###   SB REF   ###
             # here, within the functional run code, check to see if the
@@ -422,6 +452,7 @@ def infotodict(seqinfo):
 
             if (
                 idx+1 < len(seqinfo)
+                and seqinfo[idx+1].protocol_name == s.protocol_name
                 and 'P' in seqinfo[idx+1].image_type
             ):
                 # we have a magnitude/phase pair:
@@ -457,11 +488,6 @@ def infotodict(seqinfo):
         ):
             if s.image_type[2] == 'M':
                 # magnitude image
-                # For now, we don't need to separate according to TEs,
-                # because dcm2niix seems to create 2 NIfTI files
-                # with suffixes "1" and "2", which is what BIDS
-                # specifies. If this changes, we would have to do
-                # something, like s.TE
                 info[fmap_gre_mag].append({'item': s.series_id})
             elif s.image_type[2] == 'P':
                 # phase image:
