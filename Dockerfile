@@ -54,7 +54,7 @@ RUN mkdir /tmp/bidsphysio && \
     rm -rf /tmp/bidsphysio
 
 # Install heudiconv from github:
-ENV CBIHEUDICONV_VERSION=v3.3
+ENV CBIHEUDICONV_VERSION=v3.4
 RUN mkdir /tmp/heudiconv && \
     curl -sSL https://github.com/cbinyu/heudiconv/archive/${CBIHEUDICONV_VERSION}.tar.gz \
         | tar -vxz -C /tmp/heudiconv --strip-components=1 && \
