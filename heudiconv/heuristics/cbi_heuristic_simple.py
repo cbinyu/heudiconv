@@ -1,13 +1,29 @@
-# Heuristics file in use at the NYU's Center for Brain Imaging
-# (Our data come from a Siemens Prisma 3T scanner).
-# Author: Pablo Velasco
-# Date: 4/23/2020
+"""
+Heuristics file in use at the NYU's Center for Brain Imaging
+(Our data come from a Siemens Prisma 3T scanner).
+At the end of the classification, the function
+`clean_up_unneeded_tags_from_info` simplifies the BIDS file
+names
+
+Author: Pablo Velasco
+Date: 4/28/2020
+"""
 
 import os
 
 # Note: When we have pairs of scans "original" + "normalize", we only
 #       keep the normalized image in the BIDS structure. The DICOMs for
 #       the original images are extracted in the 'sourcedata' folder.
+
+DEFAULT_FIELDS = {
+    # For the `dataset_description.json`:
+    "Acknowledgements": [
+        "We thank Pablo Velasco and the rest of the NYU CBI (Center "
+        "for Brain Imaging) personnel for preparing the BIDS "
+        "dataset.",
+        "TODO: whom else you want to acknowledge",
+    ]
+}
 
 
 def create_key(subdir, file_suffix, outtype=('nii.gz', 'dicom'),
