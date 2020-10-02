@@ -21,10 +21,24 @@ from .utils import (
     json_dumps_pretty,
     set_readonly,
     is_readonly,
+    get_datetime,
 )
 
 lgr = logging.getLogger(__name__)
 
+# Fields to be populated in _scans files. Order matters
+SCANS_FILE_FIELDS = OrderedDict([
+    ("filename", OrderedDict([
+        ("Description", "Name of the nifti file")])),
+    ("acq_time", OrderedDict([
+        ("LongName", "Acquisition time"),
+        ("Description", "Acquisition time of the particular scan")])),
+    ("operator", OrderedDict([
+        ("Description", "Name of the operator")])),
+    ("randstr", OrderedDict([
+        ("LongName", "Random string"),
+        ("Description", "md5 hash of UIDs")])),
+])
 
 class BIDSError(Exception):
     pass
@@ -171,7 +185,7 @@ def populate_aggregated_jsons(path):
             act = "Generating"
         lgr.debug("%s %s", act, task_file)
         fields.update(placeholders)
-        save_json(task_file, fields, indent=2, sort_keys=True, pretty=True)
+        save_json(task_file, fields, sort_keys=True, pretty=True)
 
 
 def tuneup_bids_json_files(json_files):
@@ -193,7 +207,7 @@ def tuneup_bids_json_files(json_files):
             # Let's hope no word 'Date' comes within a study name or smth like
             # that
             raise ValueError("There must be no dates in .json sidecar")
-        save_json(jsonfile, json_, indent=2)
+        save_json(jsonfile, json_)
 
     # Load the beast
     seqtype = op.basename(op.dirname(jsonfile))
@@ -223,7 +237,7 @@ def tuneup_bids_json_files(json_files):
             was_readonly = is_readonly(json_phasediffname)
             if was_readonly:
                 set_readonly(json_phasediffname, False)
-            save_json(json_phasediffname, json_, indent=2)
+            save_json(json_phasediffname, json_)
             if was_readonly:
                 set_readonly(json_phasediffname)
 
@@ -259,8 +273,7 @@ def add_participant_record(studydir, subject, age, sex):
                         ("Description", "(TODO: adjust - by default everyone is in "
                             "control group)")])),
                 ]),
-                sort_keys=False,
-                indent=2)
+                sort_keys=False)
     # Add a new participant
     with open(participants_tsv, 'a') as f:
         f.write(
@@ -360,23 +373,9 @@ def add_rows_to_scans_keys_file(fn, newrows):
         # _scans.tsv). This auto generation will make BIDS-validator happy.
         scans_json = '.'.join(fn.split('.')[:-1] + ['json'])
         if not op.lexists(scans_json):
-            save_json(scans_json,
-                OrderedDict([
-                    ("filename", OrderedDict([
-                        ("Description", "Name of the nifti file")])),
-                    ("acq_time", OrderedDict([
-                        ("LongName", "Acquisition time"),
-                        ("Description", "Acquisition time of the particular scan")])),
-                    ("operator", OrderedDict([
-                        ("Description", "Name of the operator")])),
-                    ("randstr", OrderedDict([
-                        ("LongName", "Random string"),
-                        ("Description", "md5 hash of UIDs")])),
-                ]),
-                sort_keys=False,
-                indent=2)
+            save_json(scans_json, SCANS_FILE_FIELDS, sort_keys=False)
 
-    header = ['filename', 'acq_time', 'operator', 'randstr']
+    header = SCANS_FILE_FIELDS
     # prepare all the data rows
     data_rows = [[k] + v for k, v in fnames2info.items()]
     # sort by the date/filename
@@ -405,12 +404,11 @@ def get_formatted_scans_key_row(dcm_fn):
     """
     dcm_data = dcm.read_file(dcm_fn, stop_before_pixels=True, force=True)
     # we need to store filenames and acquisition times
-    # parse date and time and get it into isoformat
+    # parse date and time of start of run acquisition and get it into isoformat
     try:
-        date = dcm_data.ContentDate
-        time = dcm_data.ContentTime.split('.')[0]
-        td = time + date
-        acq_time = datetime.strptime(td, '%H%M%S%Y%m%d').isoformat()
+        date = dcm_data.AcquisitionDate
+        time = dcm_data.AcquisitionTime
+        acq_time = get_datetime(date, time)
     except (AttributeError, ValueError) as exc:
         lgr.warning("Failed to get date/time for the content: %s", str(exc))
         acq_time = ''

@@ -1,4 +1,4 @@
-__version__ = "3.4"
+__version__ = "3.5"
 __author__ = "HeuDiConv team and contributors"
 __url__ = "https://github.com/cbinyu/heudiconv"
 __packagename__ = 'cbi_heudiconv'
@@ -38,10 +38,11 @@ TESTS_REQUIRES = [
     'inotify',
 ]
 
+MIN_DATALAD_VERSION = '0.12.4'
 EXTRA_REQUIRES = {
     'tests': TESTS_REQUIRES,
     'extras': [],  # Requires patched version ATM ['dcmstack'],
-    'datalad': ['datalad >=0.12.3']
+    'datalad': ['datalad >=%s' % MIN_DATALAD_VERSION]
 }
 
 # Flatten the lists
