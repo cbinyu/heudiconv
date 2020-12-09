@@ -17,12 +17,11 @@ import os
 
 DEFAULT_FIELDS = {
     # For the `dataset_description.json`:
-    "Acknowledgements": [
+    "Acknowledgements":
         "We thank Pablo Velasco and the rest of the NYU CBI (Center "
         "for Brain Imaging) personnel for preparing the BIDS "
-        "dataset.",
-        "TODO: whom else you want to acknowledge",
-    ]
+        "dataset. "
+        "TODO: whom else you want to acknowledge"
 }
 
 
