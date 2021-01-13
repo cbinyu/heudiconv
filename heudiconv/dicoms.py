@@ -106,8 +106,8 @@ def create_seqinfo(mw, series_files, series_id):
         patient_age=dcminfo.get('PatientAge'),
         patient_sex=dcminfo.get('PatientSex'),
         date=dcminfo.get('AcquisitionDate'),
+        series_uid=dcminfo.get('SeriesInstanceUID'),
         time=dcminfo.get('AcquisitionTime'),
-        series_uid=dcminfo.get('SeriesInstanceUID')
     )
     return seqinfo
 
@@ -289,7 +289,7 @@ def group_dicoms_into_seqinfos(files, grouping, file_filter=None,
                 or mw.dcm_data.SeriesDescription.endswith('_PhysioLog')
             ):
                 # just give it a dummy shape, so that we can continue:
-                mw.image_shape=(0,0,0)
+                mw.image_shape = (0, 0, 0)
             else:
                 # nothing to see here, just move on
                 continue

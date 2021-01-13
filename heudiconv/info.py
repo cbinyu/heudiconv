@@ -1,4 +1,4 @@
-__version__ = "3.5"
+__version__ = "3.5.1"
 __author__ = "HeuDiConv team and contributors"
 __url__ = "https://github.com/cbinyu/heudiconv"
 __packagename__ = 'cbi_heudiconv'

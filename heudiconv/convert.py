@@ -7,7 +7,6 @@ import shutil
 import sys
 import re
 
-from collections import OrderedDict
 from .utils import (
     read_config,
     load_json,
@@ -21,7 +20,6 @@ from .utils import (
     seqinfo_fields,
     assure_no_file_exists,
     file_md5sum,
-    SeqInfo
 )
 from .bids import (
     convert_sid_bids,
