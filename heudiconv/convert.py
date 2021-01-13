@@ -583,17 +583,30 @@ def convert_physio(item_dicoms, bids_options, prefix):
     -------
     None
     """
-    if bids_options is not None:
-        from bidsphysio.dcm2bids import dcm2bidsphysio
-        item_dicoms = list(map(op.abspath, item_dicoms)) # absolute paths
-        if len(item_dicoms)>1:
-            lgr.warning("More than one PHYSIO file has been found for this series. "
-                        "If each file corresponds to a different signal, all is OK. "
-                        "If multiple files have the same signal, only the signal "
-                        "from the last file will be saved.")
-        for dicom_file in item_dicoms:
-            dcm2bidsphysio.dcm2bids( dicom_file, prefix )
+    if bids_options is None:
+        return
 
+    try:
+        from bidsphysio.dcm2bids.dcm2bidsphysio import dcm2bids
+    except ImportError:
+        lgr.warning(
+            "bidsphysio.dcm2bids not found. "
+            "Not extracting physiological recordings."
+        )
+        return
+
+    item_dicoms = list(map(op.abspath, item_dicoms)) # absolute paths
+    if len(item_dicoms) > 1:
+        lgr.warning(
+            "More than one PHYSIO file has been found for this series. "
+            "If each file corresponds to a different signal, all is OK. "
+            "If multiple files have the same signal, only the signal "
+            "from the last file will be saved."
+        )
+    for dicom_file in item_dicoms:
+        physio_data = dcm2bids(dicom_file)
+        if physio_data.labels():
+            physio_data.save_to_bids_with_trigger(prefix)
 
 
 def nipype_convert(item_dicoms, prefix, with_prov, bids_options, tmpdir, dcmconfig=None):
