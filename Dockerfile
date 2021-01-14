@@ -3,7 +3,7 @@
 # we'll just get only what we need for the actual APP
 
 ARG DEBIAN_VERSION=buster
-ARG BASE_PYTHON_VERSION=3.7
+ARG BASE_PYTHON_VERSION=3.8
 # (don't use simply PYTHON_VERSION because it's an env variable)
 
 # Use an official Python runtime as a parent image
@@ -31,7 +31,7 @@ RUN mkdir /tmp/dcmstack && \
 
 # Install dcm2niix from github (it requires git to "superbuild"):
 # Install also pigz-- it makes dcm2niix compress NIfTI files faster
-ENV DCM2NIIX_VERSION=v1.0.20200331
+ENV DCM2NIIX_VERSION=v1.0.20201102
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y pigz git-core && \
     apt-get clean -y && apt-get autoclean -y && apt-get autoremove -y && \
